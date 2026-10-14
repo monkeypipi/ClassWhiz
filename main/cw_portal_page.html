@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ClassWhiz 配置</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; background: #f5f5f7; color: #1d1d1f; }
+.header { background: linear-gradient(135deg, #1a1a2e, #16213e); color: white; padding: 20px; text-align: center; }
+.header h1 { font-size: 22px; margin-bottom: 4px; }
+.header p { font-size: 13px; opacity: 0.7; }
+.tabs { display: flex; background: white; border-bottom: 1px solid #e0e0e0; overflow-x: auto; position: sticky; top: 0; z-index: 10; }
+.tab { flex: 1; min-width: 80px; padding: 12px 8px; text-align: center; font-size: 14px; cursor: pointer; border: none; background: none; color: #666; }
+.tab.active { color: #007aff; border-bottom: 2px solid #007aff; font-weight: 600; }
+.content { padding: 16px; max-width: 600px; margin: 0 auto; }
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+.card { background: white; border-radius: 12px; padding: 16px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+.card h3 { font-size: 16px; margin-bottom: 12px; }
+.field { margin-bottom: 12px; }
+.field label { display: block; font-size: 13px; color: #666; margin-bottom: 4px; }
+.field input, .field select { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 15px; }
+.field input:focus, .field select:focus { outline: none; border-color: #007aff; }
+.row { display: flex; gap: 8px; }
+.row .field { flex: 1; }
+.btn { display: inline-block; padding: 10px 20px; border: none; border-radius: 8px; font-size: 15px; cursor: pointer; }
+.btn-primary { background: #007aff; color: white; width: 100%; margin-top: 8px; }
+.btn-danger { background: #ff3b30; color: white; padding: 6px 12px; font-size: 13px; }
+.btn-small { padding: 6px 12px; font-size: 13px; background: #f0f0f0; }
+.course-item { border: 1px solid #e0e0e0; border-radius: 8px; padding: 12px; margin-bottom: 8px; }
+.course-item .title { font-weight: 600; font-size: 15px; }
+.course-item .meta { font-size: 13px; color: #666; margin-top: 4px; }
+.course-item .actions { margin-top: 8px; display: flex; gap: 8px; }
+.color-dot { display: inline-block; width: 16px; height: 16px; border-radius: 50%; vertical-align: middle; margin-right: 6px; }
+.footer { text-align: center; padding: 20px; color: #999; font-size: 12px; }
+.toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #1d1d1f; color: white; padding: 12px 24px; border-radius: 8px; font-size: 14px; display: none; z-index: 100; }
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>📚 ClassWhiz 配置</h1>
+  <p>课程助手 · 网页配置门户</p>
+</div>
+<div class="tabs">
+  <button class="tab active" onclick="showTab('courses')">课程</button>
+  <button class="tab" onclick="showTab('teachers')">教师</button>
+  <button class="tab" onclick="showTab('tasks')">任务</button>
+  <button class="tab" onclick="showTab('student')">学生证</button>
+  <button class="tab" onclick="showTab('weather')">天气</button>
+  <button class="tab" onclick="showTab('settings')">设置</button>
+</div>
+<div class="content">
+  <!-- 课程 -->
+  <div id="panel-courses" class="tab-panel active">
+    <div id="course-list"></div>
+    <button class="btn btn-primary" onclick="addCourse()">+ 添加课程</button>
+  </div>
+  <!-- 教师 -->
+  <div id="panel-teachers" class="tab-panel">
+    <div id="teacher-list"></div>
+    <button class="btn btn-primary" onclick="addTeacher()">+ 添加教师</button>
+  </div>
+  <!-- 任务 -->
+  <div id="panel-tasks" class="tab-panel">
+    <div id="task-list"></div>
+    <button class="btn btn-primary" onclick="addTask()">+ 添加任务</button>
+  </div>
+  <!-- 学生证 -->
+  <div id="panel-student" class="tab-panel">
+    <div class="card">
+      <h3>学生证信息</h3>
+      <div class="field"><label>英文名</label><input id="stu-name-en" placeholder="Hang Zhang"></div>
+      <div class="field"><label>中文名</label><input id="stu-name-zh" placeholder="张杭"></div>
+      <div class="field"><label>学号</label><input id="stu-id" placeholder="12345678"></div>
+      <div class="field"><label>学校(英文)</label><input id="stu-uni-en" placeholder="UBC"></div>
+      <div class="field"><label>学校(中文)</label><input id="stu-uni-zh" placeholder="不列颠哥伦比亚大学"></div>
+      <div class="field"><label>照片</label><input type="file" id="stu-photo" accept="image/jpeg,image/png">
+        <p style="font-size:12px;color:#999;margin-top:4px;">建议 96×96 JPEG，照片功能开发中</p></div>
+    </div>
+  </div>
+  <!-- 天气 -->
+  <div id="panel-weather" class="tab-panel">
+    <div class="card">
+      <h3>天气城市</h3>
+      <div id="weather-list"></div>
+      <div class="row">
+        <div class="field"><label>城市(英文，用于查询)</label><input id="wx-query" placeholder="Vancouver"></div>
+        <div class="field"><label>显示名</label><input id="wx-label" placeholder="温哥华"></div>
+      </div>
+      <button class="btn btn-small" onclick="addCity()">+ 添加</button>
+      <p style="font-size:12px;color:#999;margin-top:8px;">数据源：Open-Meteo（免费，无需 Key）</p>
+    </div>
+  </div>
+  <!-- 设置 -->
+  <div id="panel-settings" class="tab-panel">
+    <div class="card">
+      <h3>显示设置</h3>
+      <div class="field"><label>语言</label>
+        <select id="set-lang"><option value="0">English</option><option value="1">中文</option></select></div>
+      <div class="field"><label>时间格式</label>
+        <select id="set-time"><option value="1">24 小时</option><option value="0">12 小时</option></select></div>
+      <div class="field"><label>温度单位</label>
+        <select id="set-temp"><option value="1">摄氏 °C</option><option value="0">华氏 °F</option></select></div>
+    </div>
+  </div>
+  <button class="btn btn-primary" onclick="saveAll()" style="margin-top:16px;">💾 保存全部配置</button>
+</div>
+<div class="footer">ClassWhiz · 配置保存后设备自动重启生效</div>
+<div class="toast" id="toast"></div>
+<script>
+let config = {courses:[], teachers:[], tasks:[], student:{}, weather:{cities:[]}};
+
+function showTab(name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  event.target.classList.add('active');
+  document.getElementById('panel-'+name).classList.add('active');
+}
+
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.style.display = 'block';
+  setTimeout(() => t.style.display = 'none', 2000);
+}
+
+async function loadConfig() {
+  try {
+    const r = await fetch('/api/config');
+    config = await r.json();
+    renderAll();
+  } catch(e) { toast('加载配置失败'); }
+}
+
+function renderAll() {
+  renderCourses(); renderTeachers(); renderTasks(); renderStudent(); renderWeather();
+}
+
+function renderCourses() {
+  const el = document.getElementById('course-list');
+  el.innerHTML = config.courses.map((c,i) => `
+    <div class="course-item">
+      <div class="title"><span class="color-dot" style="background:#${c.color.toString(16).padStart(6,'0')}"></span>${c.code} ${c.title_zh||c.title_en}</div>
+      <div class="meta">${c.room||''} · ${c.slots.map(s=>'周'+'一二三四五六日'[s.day]+s.period+'节').join(' ')}</div>
+      <div class="actions">
+        <button class="btn btn-small" onclick="editCourse(${i})">编辑</button>
+        <button class="btn btn-danger" onclick="delCourse(${i})">删除</button>
+      </div>
+    </div>`).join('');
+}
+
+function addCourse() {
+  const code = prompt('课程代码（如 CPSC 210）:');
+  if (!code) return;
+  config.courses.push({code, title_en:code, title_zh:'', room:'', teacher:0, color:0x4C8DFF, slots:[]});
+  renderCourses();
+}
+function editCourse(i) { toast('编辑功能开发中，请删除后重加'); }
+function delCourse(i) { if(confirm('删除?')) { config.courses.splice(i,1); renderCourses(); } }
+
+function renderTeachers() {
+  const el = document.getElementById('teacher-list');
+  el.innerHTML = config.teachers.map((t,i) => `
+    <div class="course-item">
+      <div class="title">${t.name}</div>
+      <div class="meta">${t.email||''} · ${t.office||''}</div>
+      <div class="actions"><button class="btn btn-danger" onclick="delTeacher(${i})">删除</button></div>
+    </div>`).join('');
+}
+function addTeacher() {
+  const name = prompt('教师姓名:');
+  if (!name) return;
+  config.teachers.push({name, dept:0, email:'', office:'', courses:[], hours:[]});
+  renderTeachers();
+}
+function delTeacher(i) { if(confirm('删除?')) { config.teachers.splice(i,1); renderTeachers(); } }
+
+function renderTasks() {
+  const el = document.getElementById('task-list');
+  el.innerHTML = config.tasks.map((t,i) => `
+    <div class="course-item">
+      <div class="title">${t.title}</div>
+      <div class="meta">${t.course||''} · ${t.kind==1?'考试':'作业'}</div>
+      <div class="actions"><button class="btn btn-danger" onclick="delTask(${i})">删除</button></div>
+    </div>`).join('');
+}
+function addTask() {
+  const title = prompt('任务标题:');
+  if (!title) return;
+  config.tasks.push({title, course:'', due_day_offset:0, due_min:1439, place:'', kind:0});
+  renderTasks();
+}
+function delTask(i) { if(confirm('删除?')) { config.tasks.splice(i,1); renderTasks(); } }
+
+function renderStudent() {
+  const s = config.student || {};
+  document.getElementById('stu-name-en').value = s.name_en||'';
+  document.getElementById('stu-name-zh').value = s.name_zh||'';
+  document.getElementById('stu-id').value = s.student_id||'';
+  document.getElementById('stu-uni-en').value = s.university_en||'';
+  document.getElementById('stu-uni-zh').value = s.university_zh||'';
+}
+
+function renderWeather() {
+  const el = document.getElementById('weather-list');
+  const cities = (config.weather && config.weather.cities) || [];
+  el.innerHTML = cities.map((c,i) => `
+    <div class="course-item">
+      <div class="title">${c.label||c.query}</div>
+      <div class="meta">${c.query}</div>
+      <div class="actions"><button class="btn btn-danger" onclick="delCity(${i})">删除</button></div>
+    </div>`).join('');
+}
+function addCity() {
+  const q = document.getElementById('wx-query').value.trim();
+  const l = document.getElementById('wx-label').value.trim();
+  if (!q) { toast('请输入城市英文名'); return; }
+  if (!config.weather) config.weather = {cities:[]};
+  config.weather.cities.push({query:q, label:l||q});
+  document.getElementById('wx-query').value='';
+  document.getElementById('wx-label').value='';
+  renderWeather();
+}
+function delCity(i) { config.weather.cities.splice(i,1); renderWeather(); }
+
+async function saveAll() {
+  // 收集学生证
+  config.student = {
+    name_en: document.getElementById('stu-name-en').value,
+    name_zh: document.getElementById('stu-name-zh').value,
+    student_id: document.getElementById('stu-id').value,
+    university_en: document.getElementById('stu-uni-en').value,
+    university_zh: document.getElementById('stu-uni-zh').value,
+  };
+  try {
+    const r = await fetch('/api/config', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(config)
+    });
+    const res = await r.json();
+    if (res.ok) toast('✅ 保存成功，设备即将重启');
+    else toast('保存失败');
+  } catch(e) { toast('网络错误'); }
+}
+
+loadConfig();
+</script>
+</body>
+</html>

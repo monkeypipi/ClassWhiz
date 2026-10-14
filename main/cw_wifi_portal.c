@@ -1,5 +1,7 @@
 // cw_wifi_portal.c — Wi-Fi 配置门户实现。
 #include "cw_wifi_portal.h"
+#include "cw_config.h"
+#include "cw_data.h"
 
 #include <string.h>
 
@@ -10,6 +12,7 @@
 #include "esp_http_server.h"
 #include "lwip/sockets.h"
 #include "lwip/dns.h"
+#include "cw_portal_page.h"
 
 static const char *TAG = "cw_portal";
 static bool s_running = false;
@@ -92,24 +95,51 @@ static void dns_server_task(void *pvParameters) {
 // ---------- HTTP 处理 ----------
 
 static esp_err_t root_handler(httpd_req_t *req) {
-    // TODO: 返回配置页面 HTML
-    const char *html = "<html><body><h1>ClassWhiz Config</h1><p>TODO</p></body></html>";
-    httpd_resp_set_type(req, "text/html");
-    httpd_resp_send(req, html, HTTPD_RESP_USE_STRLEN);
+    extern const char CW_PORTAL_HTML[];
+    httpd_resp_set_type(req, "text/html; charset=utf-8");
+    httpd_resp_send(req, CW_PORTAL_HTML, HTTPD_RESP_USE_STRLEN);
     return ESP_OK;
 }
 
 static esp_err_t api_config_get_handler(httpd_req_t *req) {
-    // TODO: 返回当前配置 JSON
-    httpd_resp_set_type(req, "application/json");
-    httpd_resp_send(req, "{}", HTTPD_RESP_USE_STRLEN);
+    static char json_buf[8192];
+    if (!cw_config_to_json(json_buf, sizeof(json_buf))) {
+        httpd_resp_set_status(req, "500 Internal Error");
+        httpd_resp_send(req, "{\"ok\":false}", HTTPD_RESP_USE_STRLEN);
+        return ESP_OK;
+    }
+    httpd_resp_set_type(req, "application/json; charset=utf-8");
+    httpd_resp_send(req, json_buf, HTTPD_RESP_USE_STRLEN);
     return ESP_OK;
 }
 
 static esp_err_t api_config_post_handler(httpd_req_t *req) {
-    // TODO: 接收 JSON 更新配置
+    char *buf = malloc(req->content_len + 1);
+    if (!buf) {
+        httpd_resp_set_status(req, "500 Internal Error");
+        httpd_resp_send(req, "{\"ok\":false}", HTTPD_RESP_USE_STRLEN);
+        return ESP_OK;
+    }
+    int ret = httpd_req_recv(req, buf, req->content_len);
+    if (ret <= 0) {
+        free(buf);
+        httpd_resp_set_status(req, "400 Bad Request");
+        httpd_resp_send(req, "{\"ok\":false}", HTTPD_RESP_USE_STRLEN);
+        return ESP_OK;
+    }
+    buf[ret] = '\0';
+
+    bool ok = cw_config_from_json(buf);
+    free(buf);
+
+    if (ok) {
+        cw_config_save();
+        cw_data_sync_views();
+        ESP_LOGI(TAG, "Config updated via web, saved to NVS");
+    }
+
     httpd_resp_set_type(req, "application/json");
-    httpd_resp_send(req, "{\"ok\":true}", HTTPD_RESP_USE_STRLEN);
+    httpd_resp_send(req, ok ? "{\"ok\":true}" : "{\"ok\":false}", HTTPD_RESP_USE_STRLEN);
     return ESP_OK;
 }
 
