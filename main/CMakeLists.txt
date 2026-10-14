@@ -8,6 +8,7 @@ idf_component_register(
          "cw_config.c"
          "cw_wifi_portal.c"
          "cw_photo.c"
+         "cw_weather.c"
          "cw_ui.c"
          "cw_s_home.c"
          "cw_s_schedule.c"
