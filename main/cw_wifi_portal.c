@@ -13,6 +13,7 @@
 #include "lwip/sockets.h"
 #include "lwip/dns.h"
 #include "cw_portal_page.h"
+#include "cw_photo.h"
 
 static const char *TAG = "cw_portal";
 static bool s_running = false;
@@ -143,6 +144,48 @@ static esp_err_t api_config_post_handler(httpd_req_t *req) {
     return ESP_OK;
 }
 
+// 照片上传:POST /api/photo, Content-Type: image/jpeg, body 为 JPEG 二进制
+static esp_err_t api_photo_post_handler(httpd_req_t *req) {
+    if (req->content_len == 0 || req->content_len > CW_PHOTO_MAX_SIZE) {
+        httpd_resp_set_status(req, "400 Bad Request");
+        httpd_resp_send(req, "{\"ok\":false,\"err\":\"bad size\"}", HTTPD_RESP_USE_STRLEN);
+        return ESP_OK;
+    }
+
+    uint8_t *buf = malloc(req->content_len);
+    if (!buf) {
+        httpd_resp_set_status(req, "500 Internal Error");
+        httpd_resp_send(req, "{\"ok\":false}", HTTPD_RESP_USE_STRLEN);
+        return ESP_OK;
+    }
+
+    int received = 0;
+    while (received < req->content_len) {
+        int ret = httpd_req_recv(req, (char *)buf + received, req->content_len - received);
+        if (ret <= 0) break;
+        received += ret;
+    }
+
+    bool ok = false;
+    if (received == req->content_len) {
+        // 简单验证 JPEG 魔数
+        if (buf[0] == 0xFF && buf[1] == 0xD8) {
+            ok = cw_photo_save(buf, received);
+            if (ok) {
+                // 更新学生证 has_photo 标记
+                cw_student_mut_t *s = cw_config_student_mut();
+                s->has_photo = true;
+                cw_config_save();
+            }
+        }
+    }
+    free(buf);
+
+    httpd_resp_set_type(req, "application/json");
+    httpd_resp_send(req, ok ? "{\"ok\":true}" : "{\"ok\":false}", HTTPD_RESP_USE_STRLEN);
+    return ESP_OK;
+}
+
 // Captive Portal 检测:各系统的连通性检查 URL 都重定向到配置页
 static esp_err_t captive_handler(httpd_req_t *req) {
     httpd_resp_set_status(req, "302 Found");
@@ -169,6 +212,9 @@ static void start_httpd(void) {
 
     httpd_uri_t api_post = {.uri = "/api/config", .method = HTTP_POST, .handler = api_config_post_handler};
     httpd_register_uri_handler(s_httpd, &api_post);
+
+    httpd_uri_t api_photo = {.uri = "/api/photo", .method = HTTP_POST, .handler = api_photo_post_handler};
+    httpd_register_uri_handler(s_httpd, &api_photo);
 
     // 常见 Captive Portal 检测 URL
     const char *captive_urls[] = {

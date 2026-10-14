@@ -75,8 +75,9 @@ body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
       <div class="field"><label>学号</label><input id="stu-id" placeholder="12345678"></div>
       <div class="field"><label>学校(英文)</label><input id="stu-uni-en" placeholder="UBC"></div>
       <div class="field"><label>学校(中文)</label><input id="stu-uni-zh" placeholder="不列颠哥伦比亚大学"></div>
-      <div class="field"><label>照片</label><input type="file" id="stu-photo" accept="image/jpeg,image/png">
-        <p style="font-size:12px;color:#999;margin-top:4px;">建议 96×96 JPEG，照片功能开发中</p></div>
+      <div class="field"><label>照片</label><input type="file" id="stu-photo" accept="image/jpeg">
+        <button class="btn btn-small" onclick="uploadPhoto()" style="margin-top:8px;">上传照片</button>
+        <p style="font-size:12px;color:#999;margin-top:4px;">仅支持 JPEG，建议 96×96，最大 32KB</p></div>
     </div>
   </div>
   <!-- 天气 -->
@@ -241,6 +242,23 @@ async function saveAll() {
     const res = await r.json();
     if (res.ok) toast('✅ 保存成功，设备即将重启');
     else toast('保存失败');
+  } catch(e) { toast('网络错误'); }
+}
+
+async function uploadPhoto() {
+  const input = document.getElementById('stu-photo');
+  if (!input.files || !input.files[0]) { toast('请先选择照片'); return; }
+  const file = input.files[0];
+  if (file.size > 32*1024) { toast('照片太大（最大32KB）'); return; }
+  try {
+    const r = await fetch('/api/photo', {
+      method: 'POST',
+      headers: {'Content-Type':'image/jpeg'},
+      body: file
+    });
+    const res = await r.json();
+    if (res.ok) toast('✅ 照片上传成功');
+    else toast('上传失败');
   } catch(e) { toast('网络错误'); }
 }
 

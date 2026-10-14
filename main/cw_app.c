@@ -6,6 +6,7 @@
 #include "bsp_battery.h"
 #include "bsp_display.h"
 #include "cw_config.h"
+#include "cw_photo.h"
 #include "cw_store.h"
 #include "cw_ui.h"
 #include "esp_log.h"
@@ -204,6 +205,8 @@ void cw_app_start(void) {
     // 加载动态配置(课程/教师/任务等),失败则用默认值
     cw_config_init();
     cw_data_sync_views();
+    // 初始化照片存储
+    cw_photo_init();
     cw_set_lang(s_settings.lang);
     s_depth = 0;
     s_cur_scr = NULL;
