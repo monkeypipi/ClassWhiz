@@ -38,26 +38,25 @@ typedef struct {
     uint8_t hour_count;
 } cw_teacher_mut_t;
 
-// 可变任务存储
+// 可变任务存储(匹配 cw_task_t 结构)
 typedef struct {
-    char title_en[64];
-    char title_zh[64];
-    uint8_t course;      // 课程索引, 0xFF 表示无
-    uint8_t kind;        // 0=作业 1=考试 2=项目
-    uint16_t due_year;
-    uint8_t due_month;
-    uint8_t due_day;
-    uint16_t due_min;    // 当天分钟数
+    char title[64];
+    char course[16];     // 课程代码
+    int due_day_offset;  // 相对周一的天数偏移
+    uint16_t due_min;
+    char place[32];
+    uint8_t kind;        // cw_task_kind_t
 } cw_task_mut_t;
 
-// 可变校历事件存储
+// 可变校历事件存储(匹配 cw_event_t 结构)
 typedef struct {
     uint16_t year;
     uint8_t month;
     uint8_t day;
-    uint8_t kind;        // cw_event_kind_t
     char title_en[64];
     char title_zh[64];
+    char detail_en[128];
+    uint8_t kind;        // cw_event_kind_t
 } cw_event_mut_t;
 
 // 学生证信息(可变)

@@ -76,22 +76,62 @@ static void load_defaults(void) {
     s_teachers[0].hours[1] = (cw_office_hour_t){CW_DAY_FRI, 10 * 60, 11 * 60};
     s_teachers[0].hour_count = 2;
 
-    strncpy(s_teachers[1].name, "Dr. Smith", sizeof(s_teachers[1].name) - 1);
+    strncpy(s_teachers[1].name, "Dr. Liu", sizeof(s_teachers[1].name) - 1);
     s_teachers[1].dept = CW_S_DEPT_MATH;
-    strncpy(s_teachers[1].email, "smith@math.ubc.ca", sizeof(s_teachers[1].email) - 1);
-    strncpy(s_teachers[1].office, "LSK 300", sizeof(s_teachers[1].office) - 1);
+    strncpy(s_teachers[1].email, "liu@math.ubc.ca", sizeof(s_teachers[1].email) - 1);
+    strncpy(s_teachers[1].office, "MATH 204", sizeof(s_teachers[1].office) - 1);
     s_teachers[1].courses[0] = 0;
     s_teachers[1].course_count = 1;
-    s_teachers[1].hours[0] = (cw_office_hour_t){CW_DAY_TUE, 13 * 60, 14 * 60};
+    s_teachers[1].hours[0] = (cw_office_hour_t){CW_DAY_THU, 10 * 60, 11 * 60};
     s_teachers[1].hour_count = 1;
 
-    // 任务默认(空,由用户通过网页添加)
-    s_task_count = 0;
+    // 任务默认(3个)
+    s_task_count = 3;
     memset(s_tasks, 0, sizeof(s_tasks));
+    strncpy(s_tasks[0].title, "MATH 100 Problem Set 4", sizeof(s_tasks[0].title) - 1);
+    strncpy(s_tasks[0].course, "MATH 100", sizeof(s_tasks[0].course) - 1);
+    s_tasks[0].due_day_offset = 0;
+    s_tasks[0].due_min = 23 * 60 + 59;
+    s_tasks[0].kind = 0;
+    strncpy(s_tasks[1].title, "CPSC 210 Lab 5", sizeof(s_tasks[1].title) - 1);
+    strncpy(s_tasks[1].course, "CPSC 210", sizeof(s_tasks[1].course) - 1);
+    s_tasks[1].due_day_offset = 1;
+    s_tasks[1].due_min = 23 * 60 + 59;
+    s_tasks[1].kind = 0;
+    strncpy(s_tasks[2].title, "CPSC 110 Midterm", sizeof(s_tasks[2].title) - 1);
+    strncpy(s_tasks[2].course, "CPSC 110", sizeof(s_tasks[2].course) - 1);
+    s_tasks[2].due_day_offset = 4;
+    s_tasks[2].due_min = 19 * 60;
+    strncpy(s_tasks[2].place, "DMP 110", sizeof(s_tasks[2].place) - 1);
+    s_tasks[2].kind = 1;
 
-    // 校历默认(空)
-    s_event_count = 0;
+    // 校历默认
+    s_event_count = 5;
     memset(s_events, 0, sizeof(s_events));
+    // 手动赋值(避免复合字面量初始化顺序问题)
+    s_events[0].year = 2026; s_events[0].month = 10; s_events[0].day = 12;
+    strncpy(s_events[0].title_en, "Thanksgiving Day", 63);
+    strncpy(s_events[0].title_zh, "感恩节", 63);
+    strncpy(s_events[0].detail_en, "No classes", 127);
+    s_events[0].kind = 0;
+    s_events[1].year = 2026; s_events[1].month = 10; s_events[1].day = 16;
+    strncpy(s_events[1].title_en, "CPSC 110 Midterm", 63);
+    strncpy(s_events[1].title_zh, "CPSC 110 期中考试", 63);
+    strncpy(s_events[1].detail_en, "19:00 DMP 110", 127);
+    s_events[1].kind = 1;
+    s_events[2].year = 2026; s_events[2].month = 11; s_events[2].day = 11;
+    strncpy(s_events[2].title_en, "Remembrance Day", 63);
+    strncpy(s_events[2].title_zh, "国殇纪念日", 63);
+    strncpy(s_events[2].detail_en, "No classes", 127);
+    s_events[2].kind = 0;
+    s_events[3].year = 2026; s_events[3].month = 12; s_events[3].day = 8;
+    strncpy(s_events[3].title_en, "Last day of classes", 63);
+    strncpy(s_events[3].title_zh, "结课日", 63);
+    s_events[3].kind = 2;
+    s_events[4].year = 2026; s_events[4].month = 12; s_events[4].day = 14;
+    strncpy(s_events[4].title_en, "Final examinations begin", 63);
+    strncpy(s_events[4].title_zh, "期末考试周开始", 63);
+    s_events[4].kind = 1;
 
     // 学生证默认
     memset(&s_student, 0, sizeof(s_student));

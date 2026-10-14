@@ -15,6 +15,8 @@ static cw_lang_t s_lang = CW_LANG_EN;
 // Web 更新后调用 cw_data_sync_views() 刷新视图。
 static cw_course_t s_course_views[CW_MAX_COURSES];
 static cw_teacher_t s_teacher_views[CW_MAX_TEACHERS];
+static cw_task_t s_task_views[CW_MAX_TASKS];
+static cw_event_t s_event_views[CW_MAX_EVENTS];
 
 void cw_data_sync_views(void) {
     int count;
@@ -41,6 +43,25 @@ void cw_data_sync_views(void) {
         memcpy(s_teacher_views[i].hours, teachers[i].hours,
                sizeof(cw_office_hour_t) * teachers[i].hour_count);
         s_teacher_views[i].hour_count = teachers[i].hour_count;
+    }
+    cw_task_mut_t *tasks = cw_config_tasks_mut(&count);
+    for (int i = 0; i < count && i < CW_MAX_TASKS; i++) {
+        s_task_views[i].title = tasks[i].title;
+        s_task_views[i].course = tasks[i].course;
+        s_task_views[i].due_day_offset = tasks[i].due_day_offset;
+        s_task_views[i].due_min = tasks[i].due_min;
+        s_task_views[i].place = tasks[i].place[0] ? tasks[i].place : NULL;
+        s_task_views[i].kind = (cw_task_kind_t)tasks[i].kind;
+    }
+    cw_event_mut_t *events = cw_config_events_mut(&count);
+    for (int i = 0; i < count && i < CW_MAX_EVENTS; i++) {
+        s_event_views[i].year = events[i].year;
+        s_event_views[i].month = events[i].month;
+        s_event_views[i].day = events[i].day;
+        s_event_views[i].title_en = events[i].title_en;
+        s_event_views[i].title_zh = events[i].title_zh;
+        s_event_views[i].detail_en = events[i].detail_en[0] ? events[i].detail_en : NULL;
+        s_event_views[i].kind = (cw_event_kind_t)events[i].kind;
     }
 }
 
@@ -185,27 +206,7 @@ int cw_period_end_min(int period) {
 }
 
 // 课程数据
-static const uint8_t COURSES_MATH100[] = {0};
-static const uint8_t COURSES_CARTER[] = {1, 2};
 
-static const cw_course_t COURSES[] = {
-    {
-        .code = "MATH 100", .title_en = "Differential Calculus", .title_zh = "微分学",
-        .room = "LSK 200", .teacher = 1, .color = 0x8B5CF6,
-        .slots = {{CW_DAY_MON, 1}, {CW_DAY_TUE, 1}, {CW_DAY_THU, 1}}, .slot_count = 3,
-    },
-    {
-        .code = "CPSC 110", .title_en = "Computation, Programs", .title_zh = "计算与程序",
-        .room = "DMP 110", .teacher = 0, .color = 0x4C8DFF,
-        .slots = {{CW_DAY_MON, 3}, {CW_DAY_TUE, 3}, {CW_DAY_WED, 3}, {CW_DAY_FRI, 3}},
-        .slot_count = 4,
-    },
-    {
-        .code = "CPSC 210", .title_en = "Software Construction", .title_zh = "软件构造",
-        .room = "ICCS X836", .teacher = 0, .color = 0x22B8A8,
-        .slots = {{CW_DAY_TUE, 6}, {CW_DAY_WED, 6}}, .slot_count = 2,
-    },
-};
 
 int cw_course_count(void) {
     int count;
@@ -274,22 +275,6 @@ bool cw_next_class(int today_day, int now_min, int *out_day, cw_class_t *out_cla
 }
 
 // 教师数据
-static const cw_teacher_t TEACHERS[] = {
-    {
-        .name = "Prof. Carter", .dept = CW_S_DEPT_CS,
-        .email = "carter@cs.ubc.ca", .office = "ICCS 239",
-        .courses = COURSES_CARTER, .course_count = 2,
-        .hours = {{CW_DAY_WED, 14 * 60, 15 * 60}, {CW_DAY_FRI, 10 * 60, 11 * 60}},
-        .hour_count = 2,
-    },
-    {
-        .name = "Dr. Liu", .dept = CW_S_DEPT_MATH,
-        .email = "liu@math.ubc.ca", .office = "MATH 204",
-        .courses = COURSES_MATH100, .course_count = 1,
-        .hours = {{CW_DAY_THU, 10 * 60, 11 * 60}},
-        .hour_count = 1,
-    },
-};
 
 int cw_teacher_count(void) {
     int count;
@@ -306,7 +291,7 @@ int cw_office_hours_week(cw_oh_entry_t *out, int max_out) {
     int n = 0;
     if (out == NULL || max_out <= 0) return 0;
     for (int t = 0; t < cw_teacher_count() && n < max_out; t++) {
-        const cw_teacher_t *teacher = &TEACHERS[t];
+        const cw_teacher_t *teacher = cw_teacher(t);
         for (int h = 0; h < teacher->hour_count && n < max_out; h++) {
             int pos = n;
             uint32_t key =
@@ -328,34 +313,30 @@ int cw_office_hours_week(cw_oh_entry_t *out, int max_out) {
 }
 
 // 校历事件
-static const cw_event_t EVENTS[] = {
-    {2026, 10, 12, "Thanksgiving Day", "感恩节", "No classes", CW_EVENT_HOLIDAY},
-    {2026, 10, 16, "CPSC 110 Midterm", "CPSC 110 期中考试", "19:00 DMP 110", CW_EVENT_EXAM},
-    {2026, 11, 11, "Remembrance Day", "国殇纪念日", "No classes", CW_EVENT_HOLIDAY},
-    {2026, 12, 8, "Last day of classes", "结课日", NULL, CW_EVENT_INFO},
-    {2026, 12, 14, "Final examinations begin", "期末考试周开始", NULL, CW_EVENT_EXAM},
-};
 
 int cw_event_count(void) {
-    return (int)(sizeof(EVENTS) / sizeof(EVENTS[0]));
+    int count;
+    cw_config_events_mut(&count);
+    return count;
 }
 
 const cw_event_t *cw_event(int idx) {
     if (idx < 0 || idx >= cw_event_count()) return NULL;
-    return &EVENTS[idx];
+    return &s_event_views[idx];
 }
 
 int cw_events_for_month(int year, int month, const cw_event_t **out, int max_out) {
     int n = 0;
     if (out == NULL || max_out <= 0) return 0;
     for (int i = 0; i < cw_event_count() && n < max_out; i++) {
-        if (EVENTS[i].year == year && EVENTS[i].month == month) {
+        const cw_event_t *e = cw_event(i);
+        if (e->year == year && e->month == month) {
             int pos = n;
-            while (pos > 0 && out[pos - 1]->day > EVENTS[i].day) {
+            while (pos > 0 && out[pos - 1]->day > e->day) {
                 out[pos] = out[pos - 1];
                 pos--;
             }
-            out[pos] = &EVENTS[i];
+            out[pos] = e;
             n++;
         }
     }
@@ -392,19 +373,16 @@ int cw_weekday_of_date(int year, int month, int day) {
 }
 
 // 任务数据(due_day_offset 相对 2026-10-12 周一)
-static const cw_task_t TASKS[] = {
-    {"MATH 100 Problem Set 4", "MATH 100", 0, 23 * 60 + 59, NULL, CW_TASK_HOMEWORK},
-    {"CPSC 210 Lab 5", "CPSC 210", 1, 23 * 60 + 59, NULL, CW_TASK_HOMEWORK},
-    {"CPSC 110 Midterm", "CPSC 110", 4, 19 * 60, "DMP 110", CW_TASK_EXAM},
-};
 
 int cw_task_count(void) {
-    return (int)(sizeof(TASKS) / sizeof(TASKS[0]));
+    int count;
+    cw_config_tasks_mut(&count);
+    return count;
 }
 
 const cw_task_t *cw_task(int idx) {
     if (idx < 0 || idx >= cw_task_count()) return NULL;
-    return &TASKS[idx];
+    return &s_task_views[idx];
 }
 
 cw_task_group_t cw_task_group(const cw_task_t *t, int today_day_offset) {

@@ -58,7 +58,7 @@ run_static_checks() {
         -o "${test_dir}/test_bsp_audio_recovery"
     "${test_dir}/test_bsp_audio_recovery"
     "${CC:-cc}" -std=c11 -Wall -Wextra -Werror -Imain \
-        tests/test_cw_data.c main/cw_data.c \
+        tests/test_cw_data.c main/cw_data.c tests/cw_config_host.c \
         -o "${test_dir}/test_cw_data"
     "${test_dir}/test_cw_data"
     "${CC:-cc}" -std=c11 -Wall -Wextra -Werror -Imain \

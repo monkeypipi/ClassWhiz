@@ -4,6 +4,7 @@
 #include <string.h>
 
 #include "cw_data.h"
+#include "cw_config.h"
 
 #define CHECK(cond) do { \
     if (!(cond)) { \
@@ -133,6 +134,9 @@ static int test_format(void) {
 }
 
 int main(void) {
+    // 初始化动态配置(加载默认数据并同步视图)
+    cw_config_init();
+    cw_data_sync_views();
     int fails = 0;
     fails += test_periods();
     fails += test_schedule();
