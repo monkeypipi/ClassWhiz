@@ -6,6 +6,7 @@ idf_component_register(
          "cw_pomodoro.c"
          "cw_store.c"
          "cw_config.c"
+         "cw_wifi_portal.c"
          "cw_ui.c"
          "cw_s_home.c"
          "cw_s_schedule.c"
