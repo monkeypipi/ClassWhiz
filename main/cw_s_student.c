@@ -1,6 +1,50 @@
 // cw_s_student.c — 电子学生证。
 #include "cw_app.h"
 #include "cw_ui.h"
+#include "cw_photo.h"
+#include "cw_config.h"
+
+#include <stdio.h>
+#include <stdlib.h>
+
+// 照片 LVGL 描述符(静态,避免重复分配)
+static lv_img_dsc_t s_photo_dsc;
+static uint8_t *s_photo_buf = NULL;
+static bool s_photo_loaded = false;
+
+static bool load_student_photo(void) {
+    if (s_photo_loaded) return s_photo_buf != NULL;
+    s_photo_loaded = true;
+
+    if (!cw_photo_exists()) return false;
+
+    FILE *f = fopen(cw_photo_path(), "rb");
+    if (!f) return false;
+
+    s_photo_buf = malloc(CW_PHOTO_SIZE);
+    if (!s_photo_buf) {
+        fclose(f);
+        return false;
+    }
+
+    size_t n = fread(s_photo_buf, 1, CW_PHOTO_SIZE, f);
+    fclose(f);
+
+    if (n != CW_PHOTO_SIZE) {
+        free(s_photo_buf);
+        s_photo_buf = NULL;
+        return false;
+    }
+
+    s_photo_dsc.header.always_zero = 0;
+    s_photo_dsc.header.w = CW_PHOTO_W;
+    s_photo_dsc.header.h = CW_PHOTO_H;
+    s_photo_dsc.header.cf = LV_IMG_CF_TRUE_COLOR;
+    s_photo_dsc.data_size = CW_PHOTO_SIZE;
+    s_photo_dsc.data = s_photo_buf;
+
+    return true;
+}
 
 static void student_enter(void *ctx) {
     (void)ctx;
@@ -42,16 +86,26 @@ static void student_enter(void *ctx) {
                           LV_FLEX_ALIGN_CENTER);
     lv_obj_set_style_pad_gap(row, 6, 0);
 
-    lv_obj_t *av = lv_obj_create(row);
-    lv_obj_set_size(av, 36, 36);
-    lv_obj_set_style_radius(av, LV_RADIUS_CIRCLE, 0);
-    lv_obj_set_style_bg_color(av, lv_color_hex(CW_C_ACCENT), 0);
-    lv_obj_set_style_border_width(av, 0, 0);
-    lv_obj_t *il = lv_label_create(av);
-    lv_label_set_text(il, "HZ");
-    lv_obj_set_style_text_font(il, &lv_font_montserrat_14, 0);
-    lv_obj_set_style_text_color(il, lv_color_hex(0xFFFFFF), 0);
-    lv_obj_center(il);
+    // 头像:有照片显示照片,无照片显示首字母
+    lv_obj_t *av;
+    if (load_student_photo()) {
+        av = lv_img_create(row);
+        lv_img_set_src(av, &s_photo_dsc);
+        lv_obj_set_size(av, 48, 48);
+        lv_obj_set_style_radius(av, LV_RADIUS_CIRCLE, 0);
+        lv_obj_set_style_clip_corner(av, true, 0);
+    } else {
+        av = lv_obj_create(row);
+        lv_obj_set_size(av, 36, 36);
+        lv_obj_set_style_radius(av, LV_RADIUS_CIRCLE, 0);
+        lv_obj_set_style_bg_color(av, lv_color_hex(CW_C_ACCENT), 0);
+        lv_obj_set_style_border_width(av, 0, 0);
+        lv_obj_t *il = lv_label_create(av);
+        lv_label_set_text(il, "HZ");
+        lv_obj_set_style_text_font(il, &lv_font_montserrat_14, 0);
+        lv_obj_set_style_text_color(il, lv_color_hex(0xFFFFFF), 0);
+        lv_obj_center(il);
+    }
 
     lv_obj_t *mid = cw_col(row);
     lv_obj_set_style_pad_gap(mid, 1, 0);

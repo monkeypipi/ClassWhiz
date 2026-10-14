@@ -144,9 +144,10 @@ static esp_err_t api_config_post_handler(httpd_req_t *req) {
     return ESP_OK;
 }
 
-// 照片上传:POST /api/photo, Content-Type: image/jpeg, body 为 JPEG 二进制
+// 照片上传:POST /api/photo, Content-Type: application/octet-stream
+// body 为 96x96 RGB565 raw (18432 字节,由网页端转换)
 static esp_err_t api_photo_post_handler(httpd_req_t *req) {
-    if (req->content_len == 0 || req->content_len > CW_PHOTO_MAX_SIZE) {
+    if (req->content_len != CW_PHOTO_SIZE) {
         httpd_resp_set_status(req, "400 Bad Request");
         httpd_resp_send(req, "{\"ok\":false,\"err\":\"bad size\"}", HTTPD_RESP_USE_STRLEN);
         return ESP_OK;
@@ -168,15 +169,12 @@ static esp_err_t api_photo_post_handler(httpd_req_t *req) {
 
     bool ok = false;
     if (received == req->content_len) {
-        // 简单验证 JPEG 魔数
-        if (buf[0] == 0xFF && buf[1] == 0xD8) {
-            ok = cw_photo_save(buf, received);
-            if (ok) {
-                // 更新学生证 has_photo 标记
-                cw_student_mut_t *s = cw_config_student_mut();
-                s->has_photo = true;
-                cw_config_save();
-            }
+        ok = cw_photo_save(buf, received);
+        if (ok) {
+            // 更新学生证 has_photo 标记
+            cw_student_mut_t *s = cw_config_student_mut();
+            s->has_photo = true;
+            cw_config_save();
         }
     }
     free(buf);

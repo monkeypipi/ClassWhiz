@@ -36,7 +36,8 @@ bool cw_photo_init(void) {
 }
 
 bool cw_photo_save(const uint8_t *data, size_t len) {
-    if (!s_mounted || !data || len == 0 || len > CW_PHOTO_MAX_SIZE) {
+    if (!s_mounted || !data || len != CW_PHOTO_SIZE) {
+        ESP_LOGE(TAG, "Invalid photo size: %d (expected %d)", (int)len, CW_PHOTO_SIZE);
         return false;
     }
 

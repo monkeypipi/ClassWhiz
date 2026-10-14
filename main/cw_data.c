@@ -17,6 +17,11 @@ static cw_course_t s_course_views[CW_MAX_COURSES];
 static cw_teacher_t s_teacher_views[CW_MAX_TEACHERS];
 static cw_task_t s_task_views[CW_MAX_TASKS];
 static cw_event_t s_event_views[CW_MAX_EVENTS];
+static cw_student_t s_student_view;
+static char s_student_name[128];
+static char s_student_no[32];
+static char s_student_program_en[128];
+static char s_student_program_zh[128];
 
 void cw_data_sync_views(void) {
     int count;
@@ -63,6 +68,28 @@ void cw_data_sync_views(void) {
         s_event_views[i].detail_en = events[i].detail_en[0] ? events[i].detail_en : NULL;
         s_event_views[i].kind = (cw_event_kind_t)events[i].kind;
     }
+    // 学生证视图
+    cw_student_mut_t *stu = cw_config_student_mut();
+    // 姓名:优先中文,无中文用英文
+    if (stu->name_zh[0]) {
+        snprintf(s_student_name, sizeof(s_student_name), "%s %s", stu->name_zh, stu->name_en);
+    } else {
+        strncpy(s_student_name, stu->name_en, sizeof(s_student_name) - 1);
+    }
+    strncpy(s_student_no, stu->student_id, sizeof(s_student_no) - 1);
+    // 专业:用大学名代替
+    if (cw_get_lang() == CW_LANG_ZH) {
+        strncpy(s_student_program_zh, stu->university_zh, sizeof(s_student_program_zh) - 1);
+        strncpy(s_student_program_en, stu->university_en, sizeof(s_student_program_en) - 1);
+    } else {
+        strncpy(s_student_program_en, stu->university_en, sizeof(s_student_program_en) - 1);
+        strncpy(s_student_program_zh, stu->university_zh, sizeof(s_student_program_zh) - 1);
+    }
+    s_student_view.name = s_student_name;
+    s_student_view.student_no = s_student_no;
+    s_student_view.program_en = s_student_program_en;
+    s_student_view.program_zh = s_student_program_zh;
+    s_student_view.valid_thru = "04/2027";
 }
 
 void cw_set_lang(cw_lang_t lang) {
@@ -408,16 +435,8 @@ const cw_city_t *cw_city(int idx) {
     return &CITIES[idx];
 }
 
-static const cw_student_t STUDENT = {
-    .name = "ZHANG Hang",
-    .student_no = "1234 5678",
-    .program_en = "B.Sc. Computer Science · Year 2",
-    .program_zh = "理学学士 · 计算机科学 · 二年级",
-    .valid_thru = "04/2027",
-};
-
 const cw_student_t *cw_student(void) {
-    return &STUDENT;
+    return &s_student_view;
 }
 
 void cw_settings_defaults(cw_settings_t *s) {
