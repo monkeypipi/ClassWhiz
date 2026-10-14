@@ -1,11 +1,48 @@
 // cw_data.c — ClassWhiz 演示数据集与纯查询逻辑。
 // 中文字符串集中在此文件,供 tools/extract_font_inventory.py 提取。
+// 注意:课程/教师/任务/校历数据已迁移到 cw_config.c 的动态存储,
+// 此处保留查询逻辑,数据访问器委托给 cw_config。
 #include "cw_data.h"
+#include "cw_config.h"
 
 #include <stdio.h>
 #include <string.h>
 
 static cw_lang_t s_lang = CW_LANG_EN;
+
+// ---------- 动态数据视图 ----------
+// cw_config 提供可变存储,此处维护 const 视图供查询逻辑使用。
+// Web 更新后调用 cw_data_sync_views() 刷新视图。
+static cw_course_t s_course_views[CW_MAX_COURSES];
+static cw_teacher_t s_teacher_views[CW_MAX_TEACHERS];
+
+void cw_data_sync_views(void) {
+    int count;
+    cw_course_mut_t *courses = cw_config_courses_mut(&count);
+    for (int i = 0; i < count && i < CW_MAX_COURSES; i++) {
+        s_course_views[i].code = courses[i].code;
+        s_course_views[i].title_en = courses[i].title_en;
+        s_course_views[i].title_zh = courses[i].title_zh;
+        s_course_views[i].room = courses[i].room;
+        s_course_views[i].teacher = courses[i].teacher;
+        s_course_views[i].color = courses[i].color;
+        memcpy(s_course_views[i].slots, courses[i].slots,
+               sizeof(cw_slot_t) * courses[i].slot_count);
+        s_course_views[i].slot_count = courses[i].slot_count;
+    }
+    cw_teacher_mut_t *teachers = cw_config_teachers_mut(&count);
+    for (int i = 0; i < count && i < CW_MAX_TEACHERS; i++) {
+        s_teacher_views[i].name = teachers[i].name;
+        s_teacher_views[i].dept = teachers[i].dept;
+        s_teacher_views[i].email = teachers[i].email;
+        s_teacher_views[i].office = teachers[i].office;
+        s_teacher_views[i].courses = teachers[i].courses;
+        s_teacher_views[i].course_count = teachers[i].course_count;
+        memcpy(s_teacher_views[i].hours, teachers[i].hours,
+               sizeof(cw_office_hour_t) * teachers[i].hour_count);
+        s_teacher_views[i].hour_count = teachers[i].hour_count;
+    }
+}
 
 void cw_set_lang(cw_lang_t lang) {
     s_lang = (lang == CW_LANG_ZH) ? CW_LANG_ZH : CW_LANG_EN;
@@ -171,19 +208,21 @@ static const cw_course_t COURSES[] = {
 };
 
 int cw_course_count(void) {
-    return (int)(sizeof(COURSES) / sizeof(COURSES[0]));
+    int count;
+    cw_config_courses_mut(&count);
+    return count;
 }
 
 const cw_course_t *cw_course(int idx) {
     if (idx < 0 || idx >= cw_course_count()) return NULL;
-    return &COURSES[idx];
+    return &s_course_views[idx];
 }
 
 int cw_classes_for_day(int day, cw_class_t *out, int max_out) {
     int n = 0;
     if (day < 0 || day > 6 || out == NULL || max_out <= 0) return 0;
     for (int c = 0; c < cw_course_count() && n < max_out; c++) {
-        const cw_course_t *course = &COURSES[c];
+        const cw_course_t *course = cw_course(c);
         for (int s = 0; s < course->slot_count && n < max_out; s++) {
             if (course->slots[s].day == day) {
                 // 按节次插入排序(每天课少,直接插入)
@@ -253,12 +292,14 @@ static const cw_teacher_t TEACHERS[] = {
 };
 
 int cw_teacher_count(void) {
-    return (int)(sizeof(TEACHERS) / sizeof(TEACHERS[0]));
+    int count;
+    cw_config_teachers_mut(&count);
+    return count;
 }
 
 const cw_teacher_t *cw_teacher(int idx) {
     if (idx < 0 || idx >= cw_teacher_count()) return NULL;
-    return &TEACHERS[idx];
+    return &s_teacher_views[idx];
 }
 
 int cw_office_hours_week(cw_oh_entry_t *out, int max_out) {

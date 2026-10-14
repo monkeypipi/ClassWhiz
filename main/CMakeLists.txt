@@ -5,6 +5,7 @@ idf_component_register(
          "cw_data.c"
          "cw_pomodoro.c"
          "cw_store.c"
+         "cw_config.c"
          "cw_ui.c"
          "cw_s_home.c"
          "cw_s_schedule.c"
@@ -20,5 +21,5 @@ idf_component_register(
          "fonts/cw_font_14.c"
          "fonts/cw_font_16.c"
     INCLUDE_DIRS "."
-    REQUIRES bsp bt esp_event esp_hw_support esp_netif esp_timer esp_wifi nvs_flash
+    REQUIRES bsp bt esp_event esp_hw_support esp_netif esp_timer esp_wifi nvs_flash json
 )

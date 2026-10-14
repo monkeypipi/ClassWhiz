@@ -122,6 +122,9 @@ typedef struct {
 int cw_course_count(void);
 const cw_course_t *cw_course(int idx);
 
+// 同步动态数据视图(Web 更新后调用)
+void cw_data_sync_views(void);
+
 // 某天课程(按节次排序)
 typedef struct {
     const cw_course_t *course;
