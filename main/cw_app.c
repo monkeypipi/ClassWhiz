@@ -157,6 +157,9 @@ void cw_app_input(bsp_btn_t btn, bsp_btn_ev_t ev) {
     }
     if (ev == BSP_BTN_PRESS) return; // RELEASE 交给屏幕(如语音停止录音)
     const cw_screen_def_t *def = s_stack[s_depth - 1].def;
+    // 连按间隔小于按键库双击窗口时只会产出 DOUBLE;除显式使用双击的课程表页
+    // (切换视图)外,一律按单击派发,避免连按被当成"按键失灵"。
+    if (ev == BSP_BTN_DOUBLE && def != &cw_scr_schedule_def) ev = BSP_BTN_CLICK;
     if (def->key) def->key(btn, ev);
 }
 

@@ -22,12 +22,16 @@ CONFIG_LV_COLOR_DEPTH_16=y
 # 20 ms display refresh period targets up to 50 FPS when rendering and SPI
 # transfer complete within the same budget.
 CONFIG_LV_DEF_REFR_PERIOD=20
+# 8px is the smallest size that still fits a course code prefix inside the
+# schedule week grid, where seven day columns leave only ~28px each.
+CONFIG_LV_FONT_MONTSERRAT_8=y
 CONFIG_LV_FONT_MONTSERRAT_14=y
 CONFIG_LV_FONT_MONTSERRAT_16=y
 CONFIG_LV_FONT_MONTSERRAT_20=y
 # LVGL 内置 malloc 池大小(KB)。它是独立静态区、不与系统堆共享,配大了会白白占用 RAM。
-# ClassWhiz 界面较丰富(多屏对象、动画、时钟刻度),48KB。
-CONFIG_LV_MEM_SIZE_KILOBYTES=48
+# ClassWhiz 界面较丰富(多屏对象、动画、时钟刻度);九宫格图标每格由 6~10 个基本件
+# 画成,48KB 不够用,64KB 实测有余量。
+CONFIG_LV_MEM_SIZE_KILOBYTES=64
 
 # --- 系统 ---
 CONFIG_FREERTOS_HZ=1000

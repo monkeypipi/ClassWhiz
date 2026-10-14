@@ -61,9 +61,7 @@ static void build(void) {
     cw_tag(wifi, "v2", CW_C_AMBER);
 
     lv_obj_t *reset = cw_set_row(
-        body, s_confirm_reset
-                  ? (cw_get_lang() == CW_LANG_ZH ? "确认重置?" : "Confirm reset?")
-                  : cw_str(CW_S_RESET_DATA));
+        body, s_confirm_reset ? cw_str(CW_S_CONFIRM_RESET) : cw_str(CW_S_RESET_DATA));
     lv_obj_set_style_bg_opa(reset, s_sel == ROW_RESET ? LV_OPA_COVER : LV_OPA_TRANSP,
                             0);
     lv_obj_set_style_bg_color(reset, lv_color_hex(0x1B2A52), 0);

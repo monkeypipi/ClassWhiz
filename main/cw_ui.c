@@ -138,6 +138,7 @@ lv_obj_t *cw_screen_content(lv_obj_t *scr) {
 lv_obj_t *cw_card(lv_obj_t *parent) {
     lv_obj_t *c = lv_obj_create(parent);
     lv_obj_set_width(c, LV_PCT(100));
+    lv_obj_set_height(c, LV_SIZE_CONTENT);
     lv_obj_set_style_bg_color(c, lv_color_hex(CW_C_CARD), 0);
     lv_obj_set_style_bg_opa(c, LV_OPA_90, 0);
     lv_obj_set_style_border_color(c, lv_color_hex(CW_C_CARD_LINE), 0);
@@ -150,7 +151,37 @@ lv_obj_t *cw_card(lv_obj_t *parent) {
     lv_obj_set_scrollbar_mode(c, LV_SCROLLBAR_MODE_OFF);
     // 卡片内容垂直流式,避免多子元素重叠
     lv_obj_set_flex_flow(c, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_flex_align(c, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START,
+                          LV_FLEX_ALIGN_START);
     lv_obj_set_style_pad_gap(c, 4, 0);
+    return c;
+}
+
+static lv_obj_t *plain_box(lv_obj_t *parent) {
+    lv_obj_t *o = lv_obj_create(parent);
+    lv_obj_set_style_bg_opa(o, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(o, 0, 0);
+    lv_obj_set_style_pad_all(o, 0, 0);
+    lv_obj_set_scrollbar_mode(o, LV_SCROLLBAR_MODE_OFF);
+    return o;
+}
+
+lv_obj_t *cw_row(lv_obj_t *parent) {
+    lv_obj_t *r = plain_box(parent);
+    lv_obj_set_size(r, LV_PCT(100), LV_SIZE_CONTENT);
+    lv_obj_set_flex_flow(r, LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(r, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER,
+                          LV_FLEX_ALIGN_CENTER);
+    return r;
+}
+
+lv_obj_t *cw_col(lv_obj_t *parent) {
+    lv_obj_t *c = plain_box(parent);
+    lv_obj_set_size(c, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+    lv_obj_set_flex_flow(c, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_flex_align(c, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START,
+                          LV_FLEX_ALIGN_START);
+    lv_obj_set_style_pad_gap(c, 2, 0);
     return c;
 }
 
@@ -224,7 +255,7 @@ lv_obj_t *cw_button(lv_obj_t *parent, const char *text) {
 lv_obj_t *cw_set_row(lv_obj_t *parent, const char *name) {
     lv_obj_t *row = lv_obj_create(parent);
     lv_obj_set_width(row, LV_PCT(100));
-    lv_obj_set_height(row, 40);
+    lv_obj_set_height(row, 34);
     lv_obj_set_style_bg_opa(row, LV_OPA_TRANSP, 0);
     lv_obj_set_style_border_width(row, 0, 0);
     lv_obj_set_style_pad_all(row, 0, 0);
@@ -238,6 +269,7 @@ lv_obj_t *cw_set_row(lv_obj_t *parent, const char *name) {
 
 lv_obj_t *cw_seg(lv_obj_t *parent) {
     lv_obj_t *s = lv_obj_create(parent);
+    lv_obj_set_size(s, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
     lv_obj_set_style_bg_color(s, lv_color_hex(0x141D33), 0);
     lv_obj_set_style_radius(s, 8, 0);
     lv_obj_set_style_border_width(s, 0, 0);
@@ -507,6 +539,120 @@ lv_obj_t *cw_weather_icon(lv_obj_t *parent, int kind, int size) {
     return box;
 }
 
+// ---- 应用图标 ----
+// 设计稿的图标是 SVG 线稿;本机没有位图资源,用 LVGL 基本件按 26x26 设计坐标画,
+// 再等比缩放到 size。坐标一律走 sc(),改 size 不用改图。
+static int sc(int v, int size) {
+    return v * size / 26;
+}
+
+static lv_obj_t *ic_rect(lv_obj_t *box, int size, int x, int y, int w, int h, int r,
+                         bool fill) {
+    lv_obj_t *o = lv_obj_create(box);
+    lv_obj_set_pos(o, sc(x, size), sc(y, size));
+    lv_obj_set_size(o, sc(w, size), sc(h, size));
+    lv_obj_set_style_radius(o, r >= 99 ? LV_RADIUS_CIRCLE : sc(r, size), 0);
+    lv_obj_set_style_border_width(o, 2, 0);
+    lv_obj_set_style_border_color(o, lv_color_hex(0xFFFFFF), 0);
+    lv_obj_set_style_bg_color(o, lv_color_hex(0xFFFFFF), 0);
+    lv_obj_set_style_bg_opa(o, fill ? LV_OPA_COVER : LV_OPA_TRANSP, 0);
+    lv_obj_set_style_pad_all(o, 0, 0);
+    lv_obj_set_scrollbar_mode(o, LV_SCROLLBAR_MODE_OFF);
+    return o;
+}
+
+static lv_obj_t *ic_line(lv_obj_t *box, int size, int x0, int y0, int x1, int y1) {
+    lv_obj_t *l = clock_line(box, size);
+    line_set(l, sc(x0, size), sc(y0, size), sc(x1, size), sc(y1, size));
+    lv_obj_set_style_line_width(l, 2, 0);
+    lv_obj_set_style_line_color(l, lv_color_hex(0xFFFFFF), 0);
+    return l;
+}
+
+static lv_obj_t *ic_arc(lv_obj_t *box, int size, int x, int y, int w, int h, uint16_t a0,
+                        uint16_t a1) {
+    lv_obj_t *a = lv_arc_create(box);
+    lv_obj_set_pos(a, sc(x, size), sc(y, size));
+    lv_obj_set_size(a, sc(w, size), sc(h, size));
+    lv_arc_set_bg_angles(a, a0, a1);
+    lv_obj_set_style_arc_width(a, 2, 0);
+    lv_obj_set_style_arc_color(a, lv_color_hex(0xFFFFFF), 0);
+    lv_obj_set_style_arc_opa(a, LV_OPA_TRANSP, LV_PART_INDICATOR);
+    lv_obj_set_style_bg_opa(a, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(a, 0, 0);
+    lv_obj_set_style_bg_opa(a, LV_OPA_TRANSP, LV_PART_KNOB);
+    lv_obj_set_style_border_width(a, 0, LV_PART_KNOB);
+    lv_obj_set_scrollbar_mode(a, LV_SCROLLBAR_MODE_OFF);
+    return a;
+}
+
+lv_obj_t *cw_app_icon(lv_obj_t *parent, int kind, int size) {
+    lv_obj_t *b = lv_obj_create(parent);
+    lv_obj_set_size(b, size, size);
+    lv_obj_set_style_bg_opa(b, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(b, 0, 0);
+    lv_obj_set_style_pad_all(b, 0, 0);
+    lv_obj_set_scrollbar_mode(b, LV_SCROLLBAR_MODE_OFF);
+    switch (kind) {
+        case 0: // 课表:日历 + 两条课表线
+            ic_rect(b, size, 2, 4, 22, 20, 4, false);
+            ic_line(b, size, 2, 10, 24, 10);
+            ic_line(b, size, 8, 1, 8, 6);
+            ic_line(b, size, 18, 1, 18, 6);
+            ic_line(b, size, 7, 15, 15, 15);
+            ic_line(b, size, 7, 19, 19, 19);
+            break;
+        case 1: // 教师:头 + 肩
+            ic_rect(b, size, 8, 2, 10, 10, 99, false);
+            ic_arc(b, size, 4, 13, 18, 14, 180, 360);
+            break;
+        case 2: // 日历:日历 + 实心日期块
+            ic_rect(b, size, 2, 4, 22, 20, 4, false);
+            ic_line(b, size, 2, 10, 24, 10);
+            ic_line(b, size, 8, 1, 8, 6);
+            ic_line(b, size, 18, 1, 18, 6);
+            ic_rect(b, size, 7, 14, 7, 6, 1, true);
+            break;
+        case 3: // 学生证:卡片 + 头像 + 两行信息
+            ic_rect(b, size, 2, 5, 22, 16, 3, false);
+            ic_rect(b, size, 5, 9, 6, 6, 99, true);
+            ic_line(b, size, 14, 11, 21, 11);
+            ic_line(b, size, 14, 15, 20, 15);
+            break;
+        case 4: // 作业:方框 + 勾
+            ic_rect(b, size, 3, 3, 20, 20, 4, false);
+            ic_line(b, size, 8, 13, 12, 17);
+            ic_line(b, size, 12, 17, 19, 8);
+            break;
+        case 5: // 世界时钟:表盘 + 指针
+            ic_rect(b, size, 3, 3, 20, 20, 99, false);
+            ic_line(b, size, 13, 13, 13, 7);
+            ic_line(b, size, 13, 13, 18, 15);
+            break;
+        case 6: // 番茄:圆身 + 顶柄 + 指针
+            ic_rect(b, size, 3, 6, 20, 20, 99, false);
+            ic_line(b, size, 13, 2, 13, 6);
+            ic_line(b, size, 10, 2, 16, 2);
+            ic_line(b, size, 13, 16, 13, 10);
+            break;
+        case 7: // 麦克风:胶囊 + 托架 + 立杆
+            ic_rect(b, size, 9, 2, 8, 12, 4, false);
+            ic_arc(b, size, 6, 8, 14, 12, 0, 180);
+            ic_line(b, size, 13, 20, 13, 23);
+            ic_line(b, size, 9, 23, 17, 23);
+            break;
+        default: // 设置:圆芯 + 八齿
+            ic_rect(b, size, 7, 7, 12, 12, 99, false);
+            for (int i = 0; i < 8; i++) {
+                double a = i * M_PI / 4.0;
+                ic_line(b, size, 13 + (int)(6.5 * cos(a)), 13 + (int)(6.5 * sin(a)),
+                        13 + (int)(10 * cos(a)), 13 + (int)(10 * sin(a)));
+            }
+            break;
+    }
+    return b;
+}
+
 // ---- 呼吸动画 ----
 static void anim_opa_cb(void *var, int32_t v) {
     lv_obj_set_style_opa((lv_obj_t *)var, (lv_opa_t)v, 0);
@@ -533,12 +679,4 @@ void cw_screen_teardown(lv_obj_t *scr) {
     for (uint32_t i = 0; i < n; i++) {
         cw_screen_teardown(lv_obj_get_child(scr, i));
     }
-}
-
-// 内容区滚动开关(内容可能溢出的页面启用)
-void cw_screen_set_scroll(lv_obj_t *scr, bool en) {
-    screen_data_t *d = get_data(scr);
-    if (!d) return;
-    lv_obj_set_scrollbar_mode(d->content, en ? LV_SCROLLBAR_MODE_AUTO
-                                             : LV_SCROLLBAR_MODE_OFF);
 }

@@ -34,7 +34,12 @@ static uint32_t kind_color(cw_event_kind_t k) {
 
 static void rebuild(void) {
     char t[32];
-    snprintf(t, sizeof(t), "%s %d", month_name(s_month), s_year);
+    // 设计稿:中文写"2026 年 10 月",英文写"October 2026"
+    if (cw_get_lang() == CW_LANG_ZH) {
+        snprintf(t, sizeof(t), "%d 年 %s", s_year, month_name(s_month));
+    } else {
+        snprintf(t, sizeof(t), "%s %d", month_name(s_month), s_year);
+    }
     lv_label_set_text(s_title, t);
     lv_obj_clean(s_grid);
     lv_obj_clean(s_events);
@@ -47,6 +52,9 @@ static void rebuild(void) {
         lv_obj_set_style_text_font(d, cw_font_body(), 0);
         lv_obj_set_style_text_color(d, lv_color_hex(CW_C_MUTED), 0);
         lv_obj_set_style_text_align(d, LV_TEXT_ALIGN_CENTER, 0);
+        // LVGL grid 不会自动排位,每个子对象都必须显式指定单元格
+        lv_obj_set_grid_cell(d, LV_GRID_ALIGN_STRETCH, i, 1, LV_GRID_ALIGN_CENTER, 0,
+                             1);
     }
     int first = cw_weekday_of_date(s_year, s_month, 1);
     int days = cw_days_in_month(s_year, s_month);
@@ -56,13 +64,18 @@ static void rebuild(void) {
     for (int i = 0; i < first; i++) {
         lv_obj_t *d = lv_label_create(s_grid);
         lv_label_set_text(d, "");
+        lv_obj_set_grid_cell(d, LV_GRID_ALIGN_STRETCH, i % 7, 1, LV_GRID_ALIGN_CENTER,
+                             1 + i / 7, 1);
     }
     for (int day = 1; day <= days; day++) {
+        int slot = first + day - 1;
         lv_obj_t *cell = lv_obj_create(s_grid);
-        lv_obj_set_size(cell, 28, 24);
+        lv_obj_set_grid_cell(cell, LV_GRID_ALIGN_STRETCH, slot % 7, 1,
+                             LV_GRID_ALIGN_STRETCH, 1 + slot / 7, 1);
         lv_obj_set_style_bg_opa(cell, LV_OPA_TRANSP, 0);
         lv_obj_set_style_border_width(cell, 0, 0);
         lv_obj_set_style_pad_all(cell, 0, 0);
+        lv_obj_set_style_radius(cell, 6, 0);
         bool is_today = (s_year == 2026 && s_month == 10 && day == 13);
         bool has_ev = false;
         uint32_t evc = CW_C_ACCENT;
@@ -86,36 +99,40 @@ static void rebuild(void) {
         lv_obj_set_style_text_font(l, cw_font_body(), 0);
         lv_obj_set_style_text_color(
             l, lv_color_hex(is_today ? 0xFFFFFF : CW_C_TEXT), 0);
-        lv_obj_align(l, LV_ALIGN_TOP_MID, 0, 1);
+        lv_obj_align(l, LV_ALIGN_CENTER, 0, 0);
         if (has_ev && !is_today) {
             lv_obj_t *dot = lv_obj_create(cell);
             lv_obj_set_size(dot, 4, 4);
             lv_obj_set_style_radius(dot, LV_RADIUS_CIRCLE, 0);
             lv_obj_set_style_bg_color(dot, lv_color_hex(evc), 0);
             lv_obj_set_style_border_width(dot, 0, 0);
-            lv_obj_align(dot, LV_ALIGN_BOTTOM_MID, 0, -1);
+            lv_obj_align(dot, LV_ALIGN_TOP_RIGHT, -1, 1);
         }
     }
-    for (int e = 0; e < nev; e++) {
-        lv_obj_t *card = cw_card(s_events);
-        lv_obj_t *row = lv_obj_create(card);
-        lv_obj_set_width(row, LV_PCT(100));
-        lv_obj_set_style_bg_opa(row, LV_OPA_TRANSP, 0);
-        lv_obj_set_style_border_width(row, 0, 0);
-        lv_obj_set_style_pad_all(row, 0, 0);
-        lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
-        lv_obj_set_flex_align(row, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER,
+    // 244px 的内容预算(见 cw_ui.h)只放得下三行,事件压成单行、按类型着色
+    int show = nev > 3 ? 2 : nev;
+    for (int e = 0; e < show; e++) {
+        const cw_event_t *ev = evs[e];
+        lv_obj_t *row = cw_row(s_events);
+        lv_obj_set_flex_align(row, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER,
                               LV_FLEX_ALIGN_CENTER);
-        char b[64];
-        snprintf(b, sizeof(b), "%d/%d", evs[e]->month, evs[e]->day);
-        lv_obj_t *dt = cw_label(row, b);
-        (void)dt;
-        const char *kind = "";
-        if (evs[e]->kind == CW_EVENT_EXAM) kind = cw_str(CW_S_EXAM);
-        if (evs[e]->kind == CW_EVENT_HOLIDAY) kind = cw_str(CW_S_NO_CLASSES);
-        if (kind[0]) cw_tag(row, kind, kind_color(evs[e]->kind));
-        cw_label(card, cw_event_title(evs[e]));
-        if (evs[e]->detail_en) cw_label_small(card, evs[e]->detail_en);
+        lv_obj_set_style_pad_gap(row, 5, 0);
+        lv_obj_t *dot = lv_obj_create(row);
+        lv_obj_set_size(dot, 6, 6);
+        lv_obj_set_style_radius(dot, LV_RADIUS_CIRCLE, 0);
+        lv_obj_set_style_bg_color(dot, lv_color_hex(kind_color(ev->kind)), 0);
+        lv_obj_set_style_border_width(dot, 0, 0);
+        char b[96];
+        snprintf(b, sizeof(b), "%d/%d %s", ev->month, ev->day, cw_event_title(ev));
+        lv_obj_t *l = cw_label(row, b);
+        lv_obj_set_style_text_color(l, lv_color_hex(kind_color(ev->kind)), 0);
+        lv_obj_set_flex_grow(l, 1);
+        lv_label_set_long_mode(l, LV_LABEL_LONG_DOT);
+    }
+    if (nev > show) {
+        char more[32];
+        snprintf(more, sizeof(more), "+%d", nev - show);
+        cw_label_small(s_events, more);
     }
 }
 
@@ -124,31 +141,32 @@ static void cal_enter(void *ctx) {
     s_scr = cw_screen_create(cw_str(CW_S_CALENDAR));
     lv_obj_t *body = cw_screen_content(s_scr);
     s_title = cw_label(body, "");
-    lv_obj_set_style_text_font(s_title, cw_font_title(), 0);
     s_grid = lv_obj_create(body);
-    lv_obj_set_width(s_grid, LV_PCT(100));
+    lv_obj_set_size(s_grid, LV_PCT(100), LV_SIZE_CONTENT);
     lv_obj_set_style_bg_opa(s_grid, LV_OPA_TRANSP, 0);
     lv_obj_set_style_border_width(s_grid, 0, 0);
     lv_obj_set_style_pad_all(s_grid, 0, 0);
     lv_obj_set_layout(s_grid, LV_LAYOUT_GRID);
-    static const int32_t col[] = {26, 26, 26, 26, 26, 26, 26, LV_GRID_TEMPLATE_LAST};
-    static const int32_t row[] = {18, 26, 26, 26, 26, 26, 26, LV_GRID_TEMPLATE_LAST};
+    static const int32_t col[] = {LV_GRID_FR(1), LV_GRID_FR(1), LV_GRID_FR(1),
+                                  LV_GRID_FR(1), LV_GRID_FR(1), LV_GRID_FR(1),
+                                  LV_GRID_FR(1), LV_GRID_TEMPLATE_LAST};
+    // 表头行给 18:中文子集字体行高 17,16 会把星期字裁掉一像素
+    static const int32_t row[] = {18, 20, 20, 20, 20, 20, 20, LV_GRID_TEMPLATE_LAST};
     lv_obj_set_grid_dsc_array(s_grid, col, row);
     lv_obj_set_style_pad_gap(s_grid, 2, 0);
     lv_obj_set_scrollbar_mode(s_grid, LV_SCROLLBAR_MODE_OFF);
     s_events = lv_obj_create(body);
-    lv_obj_set_width(s_events, LV_PCT(100));
+    lv_obj_set_size(s_events, LV_PCT(100), LV_SIZE_CONTENT);
     lv_obj_set_style_bg_opa(s_events, LV_OPA_TRANSP, 0);
     lv_obj_set_style_border_width(s_events, 0, 0);
     lv_obj_set_style_pad_all(s_events, 0, 0);
     lv_obj_set_flex_flow(s_events, LV_FLEX_FLOW_COLUMN);
-    lv_obj_set_style_pad_gap(s_events, 6, 0);
+    lv_obj_set_style_pad_gap(s_events, 3, 0);
     lv_obj_set_scrollbar_mode(s_events, LV_SCROLLBAR_MODE_OFF);
     s_year = 2026;
     s_month = 10;
     rebuild();
     cw_hint_bar(s_scr, "UP/DN: Month", "Hold OK: Back");
-    cw_screen_set_scroll(s_scr, true);
 }
 
 static void cal_key(bsp_btn_t btn, bsp_btn_ev_t ev) {

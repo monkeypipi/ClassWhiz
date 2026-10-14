@@ -8,7 +8,9 @@
 
 ## 字库（fonts）
 
-可复用的字库文件与生成的字库源码放在 `fonts/`。
+这里唯一需要手工维护的是 `fonts/symbols.txt`，它列出界面用到的全部 CJK 与符号码位。
+生成的 LVGL 字库源码放在 `main/fonts/`，因为 `main/CMakeLists.txt` 从那里编译它们。
+它们是生成物，但仍然入库，这样新克隆的仓库不装 Node.js 也能直接构建。
 
 - 命名要能反映字族、字重、字级与格式。
 - 记录来源、许可、字符范围、转换命令与目标放置路径。
@@ -17,8 +19,13 @@
 
 | 文件 | 字符范围与格式 | 用途与来源 |
 | --- | --- | --- |
-| [`fonts/cw_font_14.c`](fonts/cw_font_14.c) | Noto Sans SC 子集，14 px，bpp 4，LVGL C 源码（约 160 KB Flash） | ClassWhiz 正文字体。覆盖 ASCII 0x20–0x7E 及 [`fonts/symbols.txt`](fonts/symbols.txt) 中的 235 个 CJK/符号码位（由 `tools/extract_font_inventory.py` 从 `main/` UI 字符串提取）。来源：[Noto Sans SC](https://github.com/google/fonts/tree/main/ofl/notosanssc)（SIL Open Font License 1.1）。用 `lv_font_conv` 1.5.1 转换。 |
-| [`fonts/cw_font_16.c`](fonts/cw_font_16.c) | Noto Sans SC 子集，16 px，bpp 4，LVGL C 源码（约 182 KB Flash） | ClassWhiz 标题字体。覆盖范围与来源同上。 |
+| [`fonts/symbols.txt`](fonts/symbols.txt) | 204 个码位，单行 UTF-8，无结尾换行 | 字库清单，格式即 `lv_font_conv --symbols` 需要的字面形式。`python3 tools/extract_font_inventory.py` 从 `main/*.c` 与 `main/*.h` 的字符串字面量重新生成它；`tests/test_cw_strings.py` 会在 `main/` 出现清单外的非 ASCII 码位时失败。 |
+| [`../main/fonts/cw_font_14.c`](../main/fonts/cw_font_14.c) | Noto Sans SC 子集，14 px，bpp 4，未压缩 LVGL C 源码（约 27 KB Flash，178 KB 生成文本） | ClassWhiz 正文字体，由 `cw_font_body()` 返回，回退字体为 `lv_font_montserrat_14`。覆盖 ASCII 0x20–0x7E、U+00B0、U+00B7 及 `fonts/symbols.txt` 中的码位。行高 17、基线 4 —— `main/cw_ui.h` 中各屏布局预算就是按这两个数字算的。来源：[Noto Sans SC](https://github.com/google/fonts/tree/main/ofl/notosanssc)（SIL Open Font License 1.1）。用 `lv_font_conv` 1.5.3 转换；完整命令行记录在生成文件的头部注释里。 |
+| [`../main/fonts/cw_font_16.c`](../main/fonts/cw_font_16.c) | Noto Sans SC 子集，16 px，bpp 4，未压缩 LVGL C 源码（约 33 KB Flash，212 KB 生成文本） | ClassWhiz 标题字体，由 `cw_font_title()` 返回，回退字体为 `lv_font_montserrat_16`。行高 20、基线 5。覆盖范围、来源与工具同上。只用于屏幕标题栏；按设计稿，列表卡片标题用正文字体。 |
+
+改动 `main/` 中任何界面字符串后，需要重新生成两个字库：先运行
+`python3 tools/extract_font_inventory.py`，再按生成文件头部注释里的 `lv_font_conv`
+命令（保持其 `main/fonts/...` 输出路径）对 Noto Sans SC Regular 的 TTF/OTF 重新转换。
 
 ## 图片（images）
 

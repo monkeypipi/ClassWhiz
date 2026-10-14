@@ -13,7 +13,6 @@ static lv_obj_t *s_next_card;
 static lv_obj_t *s_next_title;
 static lv_obj_t *s_next_meta;
 static lv_obj_t *s_next_tag;
-static lv_obj_t *s_count_label;
 
 static void today_enter(void *ctx) {
     (void)ctx;
@@ -23,7 +22,7 @@ static void today_enter(void *ctx) {
     // Hero:大时钟 + 模拟钟
     lv_obj_t *hero = lv_obj_create(body);
     lv_obj_set_width(hero, LV_PCT(100));
-    lv_obj_set_height(hero, 92);
+    lv_obj_set_height(hero, 84);
     lv_obj_set_style_bg_color(hero, lv_color_hex(0x1B2A52), 0);
     lv_obj_set_style_bg_grad_color(hero, lv_color_hex(0x0E1A38), 0);
     lv_obj_set_style_bg_grad_dir(hero, LV_GRAD_DIR_VER, 0);
@@ -36,76 +35,53 @@ static void today_enter(void *ctx) {
                           LV_FLEX_ALIGN_CENTER);
     lv_obj_set_scrollbar_mode(hero, LV_SCROLLBAR_MODE_OFF);
 
-    lv_obj_t *left = lv_obj_create(hero);
-    lv_obj_set_size(left, 148, 76);
-    lv_obj_set_style_bg_opa(left, LV_OPA_TRANSP, 0);
-    lv_obj_set_style_border_width(left, 0, 0);
-    lv_obj_set_style_pad_all(left, 0, 0);
-    lv_obj_set_flex_flow(left, LV_FLEX_FLOW_COLUMN);
+    lv_obj_t *left = cw_col(hero);
+    lv_obj_set_size(left, 150, 68);
     lv_obj_set_style_pad_gap(left, 1, 0);
-    lv_obj_set_scrollbar_mode(left, LV_SCROLLBAR_MODE_OFF);
     s_time_label = lv_label_create(left);
     lv_obj_set_style_text_font(s_time_label, &lv_font_montserrat_20, 0);
     lv_obj_set_style_text_color(s_time_label, lv_color_hex(CW_C_TEXT), 0);
     lv_label_set_text(s_time_label, "--:--");
-    // 用更大字号模拟:放大 1.6 倍(256=100%)
-    lv_obj_set_style_transform_scale(s_time_label, 410, 0);
     lv_obj_t *date = cw_label_small(
         left, cw_get_lang() == CW_LANG_ZH ? "10月13日 周二" : "TUE, OCT 13");
     lv_obj_set_style_text_color(date, lv_color_hex(0xBCD0F5), 0);
     lv_obj_t *greet = cw_label_small(left, cw_str(CW_S_GOOD_AFTERNOON));
     (void)greet;
 
-    s_clock = cw_analog_clock(hero, 64, CW_C_ACCENT);
+    s_clock = cw_analog_clock(hero, 56, CW_C_ACCENT);
 
     // 下节课卡片
     s_next_card = cw_card(body);
     lv_obj_set_style_border_color(s_next_card, lv_color_hex(CW_C_ACCENT), 0);
-    lv_obj_t *row = lv_obj_create(s_next_card);
-    lv_obj_set_width(row, LV_PCT(100));
-    lv_obj_set_style_bg_opa(row, LV_OPA_TRANSP, 0);
-    lv_obj_set_style_border_width(row, 0, 0);
-    lv_obj_set_style_pad_all(row, 0, 0);
-    lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
-    lv_obj_set_flex_align(row, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER,
-                          LV_FLEX_ALIGN_CENTER);
+    lv_obj_t *row = cw_row(s_next_card);
     s_next_tag = cw_tag(row, "", CW_C_AMBER);
     cw_anim_pulse(s_next_tag);
     lv_obj_t *ntime = cw_label_small(row, "");
     lv_obj_set_user_data(s_next_card, ntime);
     s_next_title = cw_label(s_next_card, "");
-    lv_obj_set_style_text_font(s_next_title, cw_font_title(), 0);
+    // 设计稿这里与正文同号(14px);标题字体只用于屏幕标题栏
+    lv_obj_set_width(s_next_title, LV_PCT(100));
+    lv_label_set_long_mode(s_next_title, LV_LABEL_LONG_WRAP);
     s_next_meta = cw_label_small(s_next_card, "");
-
-    // 今日课程数
-    s_count_label = cw_label_small(body, "");
+    lv_obj_set_width(s_next_meta, LV_PCT(100));
+    lv_label_set_long_mode(s_next_meta, LV_LABEL_LONG_WRAP);
 
     // 天气卡片
     lv_obj_t *wx = cw_card(body);
-    lv_obj_t *wxrow = lv_obj_create(wx);
-    lv_obj_set_width(wxrow, LV_PCT(100));
-    lv_obj_set_style_bg_opa(wxrow, LV_OPA_TRANSP, 0);
-    lv_obj_set_style_border_width(wxrow, 0, 0);
-    lv_obj_set_style_pad_all(wxrow, 0, 0);
-    lv_obj_set_flex_flow(wxrow, LV_FLEX_FLOW_ROW);
-    lv_obj_set_flex_align(wxrow, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER,
-                          LV_FLEX_ALIGN_CENTER);
-    lv_obj_t *wxleft = lv_obj_create(wxrow);
-    lv_obj_set_style_bg_opa(wxleft, LV_OPA_TRANSP, 0);
-    lv_obj_set_style_border_width(wxleft, 0, 0);
-    lv_obj_set_style_pad_all(wxleft, 0, 0);
-    lv_obj_set_flex_flow(wxleft, LV_FLEX_FLOW_COLUMN);
-    lv_obj_set_style_pad_gap(wxleft, 2, 0);
+    lv_obj_t *wxrow = cw_row(wx);
+    lv_obj_t *wxleft = cw_col(wxrow);
     cw_label(wxleft, "Vancouver");
     lv_obj_t *temp = lv_label_create(wxleft);
     lv_label_set_text(temp, "14°");
     lv_obj_set_style_text_font(temp, &lv_font_montserrat_20, 0);
     lv_obj_set_style_text_color(temp, lv_color_hex(CW_C_TEXT), 0);
     cw_label_small(wxleft, cw_str(CW_S_WX_PARTLY_CLOUDY));
-    cw_weather_icon(wxrow, 0, 52);
+    cw_weather_icon(wxrow, 0, 44);
 
+    // 无标题屏预算 274px(见 cw_ui.h):hero 84 + 下节课卡 75 + 天气卡 77 + 两个间距 16
+    // = 252,只剩 22px。上游这里还有一行“今日课程 · N”(17 + 8 = 25px),放不下;
+    // 没有触摸也就没法滚动,溢出等于信息丢失,所以把这行让给课程标题可能换行的余量。
     cw_hint_bar(s_scr, "OK: Apps", "Hold OK: Back");
-    cw_screen_set_scroll(s_scr, true);
 }
 
 static void today_exit(void) {
@@ -149,22 +125,15 @@ static void today_tick(uint64_t now_ms) {
         lv_obj_t *ntime_l = (lv_obj_t *)lv_obj_get_user_data(s_next_card);
         lv_label_set_text(ntime_l, ntime);
         char title[64];
-        snprintf(title, sizeof(title), "%s", cls.course->code);
+        snprintf(title, sizeof(title), "%s %s", cls.course->code,
+                 cw_get_lang() == CW_LANG_ZH ? cls.course->title_zh
+                                             : cls.course->title_en);
         lv_label_set_text(s_next_title, title);
         char meta[80];
         snprintf(meta, sizeof(meta), "%s · %s",
                  cls.course->room, cw_teacher(cls.course->teacher)->name);
         lv_label_set_text(s_next_meta, meta);
     }
-    cw_class_t classes[CW_MAX_SLOTS_PER_DAY];
-    int n = cw_classes_for_day(day, classes, CW_MAX_SLOTS_PER_DAY);
-    char cnt[48];
-    if (cw_get_lang() == CW_LANG_ZH) {
-        snprintf(cnt, sizeof(cnt), "今日课程 · %d", n);
-    } else {
-        snprintf(cnt, sizeof(cnt), "Today's classes · %d", n);
-    }
-    lv_label_set_text(s_count_label, cnt);
 }
 
 const cw_screen_def_t cw_scr_today_def = {
@@ -211,14 +180,14 @@ static void apps_enter(void *ctx) {
     s_apps_scr = cw_screen_create(cw_str(CW_S_APPS));
     lv_obj_t *body = cw_screen_content(s_apps_scr);
     lv_obj_t *grid = lv_obj_create(body);
-    lv_obj_set_size(grid, LV_PCT(100), 250);
+    lv_obj_set_size(grid, LV_PCT(100), LV_SIZE_CONTENT);
     lv_obj_set_style_bg_opa(grid, LV_OPA_TRANSP, 0);
     lv_obj_set_style_border_width(grid, 0, 0);
     lv_obj_set_style_pad_all(grid, 0, 0);
     lv_obj_set_layout(grid, LV_LAYOUT_GRID);
     static const int32_t col[] = {LV_GRID_FR(1), LV_GRID_FR(1), LV_GRID_FR(1),
                                   LV_GRID_TEMPLATE_LAST};
-    static const int32_t row[] = {68, 68, 68, LV_GRID_TEMPLATE_LAST};
+    static const int32_t row[] = {72, 72, 72, LV_GRID_TEMPLATE_LAST};
     lv_obj_set_grid_dsc_array(grid, col, row);
     lv_obj_set_style_pad_gap(grid, 8, 0);
     lv_obj_set_scrollbar_mode(grid, LV_SCROLLBAR_MODE_OFF);
@@ -233,28 +202,11 @@ static void apps_enter(void *ctx) {
         lv_obj_set_style_radius(t, 12, 0);
         lv_obj_set_style_border_width(t, 0, 0);
         lv_obj_set_style_pad_all(t, 4, 0);
-        lv_obj_set_style_shadow_width(t, 6, 0);
-        lv_obj_set_style_shadow_color(t, lv_color_hex(APPS[i].g1), 0);
-        lv_obj_set_style_shadow_opa(t, LV_OPA_30, 0);
-        // 首字母徽标(取首个完整 UTF-8 字符,兼容中文)
+        // 上游每格还带同色 shadow_width 6 的辉光;九个格子同时做软件阴影模糊,
+        // C3 上一帧画不完(会拖垮 LVGL 任务),这里改成用图标区分应用。
+        lv_obj_t *ic = cw_app_icon(t, i, 26);
+        lv_obj_align(ic, LV_ALIGN_TOP_MID, 0, 0);
         const char *nm = cw_str(APPS[i].name);
-        char ini[8] = {0};
-        {
-            const unsigned char *p = (const unsigned char *)nm;
-            int clen = 1;
-            if (*p >= 0xF0) clen = 4;
-            else if (*p >= 0xE0) clen = 3;
-            else if (*p >= 0xC0) clen = 2;
-            if (clen > 7) clen = 7;
-            memcpy(ini, nm, (size_t)clen);
-            ini[clen] = '\0';
-        }
-        lv_obj_t *badge = lv_label_create(t);
-        lv_label_set_text(badge, ini);
-        lv_obj_set_style_text_font(badge, &lv_font_montserrat_20, 0);
-        lv_obj_set_style_text_color(badge, lv_color_hex(0xFFFFFF), 0);
-        lv_obj_set_style_text_opa(badge, LV_OPA_70, 0);
-        lv_obj_align(badge, LV_ALIGN_TOP_MID, 0, 2);
         lv_obj_t *l = lv_label_create(t);
         lv_label_set_text(l, nm);
         lv_obj_set_style_text_font(l, cw_font_body(), 0);
@@ -262,7 +214,7 @@ static void apps_enter(void *ctx) {
         lv_label_set_long_mode(l, LV_LABEL_LONG_WRAP);
         lv_obj_set_width(l, LV_PCT(100));
         lv_obj_set_style_text_align(l, LV_TEXT_ALIGN_CENTER, 0);
-        lv_obj_align(l, LV_ALIGN_BOTTOM_MID, 0, -4);
+        lv_obj_align(l, LV_ALIGN_BOTTOM_MID, 0, -2);
         s_tiles[i] = t;
     }
     s_app_sel = 0;

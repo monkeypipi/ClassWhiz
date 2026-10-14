@@ -37,10 +37,9 @@ static void anim_h_cb(void *var, int32_t v) {
     lv_obj_set_height((lv_obj_t *)var, (int16_t)v);
 }
 
-static void anim_zoom_opa_cb(void *var, int32_t v) {
-    lv_obj_t *o = (lv_obj_t *)var;
-    lv_obj_set_style_transform_scale(o, 256 + v * 256 / 1000, 0);
-    lv_obj_set_style_opa(o, (lv_opa_t)(80 - v * 80 / 1000), 0);
+// C3 上 transform_scale 每帧要做整对象变换渲染,会卡死 LVGL 任务;扩散环只用透明度。
+static void anim_ring_opa_cb(void *var, int32_t v) {
+    lv_obj_set_style_opa((lv_obj_t *)var, (lv_opa_t)(60 - v * 60 / 1000), 0);
 }
 
 static void eq_start(void) {
@@ -49,7 +48,7 @@ static void eq_start(void) {
         lv_anim_init(&a);
         lv_anim_set_var(&a, s_bars[i]);
         lv_anim_set_exec_cb(&a, anim_h_cb);
-        lv_anim_set_values(&a, 8, 30);
+        lv_anim_set_values(&a, 6, 26);
         lv_anim_set_duration(&a, 500);
         lv_anim_set_reverse_duration(&a, 500);
         lv_anim_set_repeat_count(&a, LV_ANIM_REPEAT_INFINITE);
@@ -60,7 +59,7 @@ static void eq_start(void) {
         lv_anim_t a;
         lv_anim_init(&a);
         lv_anim_set_var(&a, s_rings[i]);
-        lv_anim_set_exec_cb(&a, anim_zoom_opa_cb);
+        lv_anim_set_exec_cb(&a, anim_ring_opa_cb);
         lv_anim_set_values(&a, 0, 1000);
         lv_anim_set_duration(&a, 1600);
         lv_anim_set_repeat_count(&a, LV_ANIM_REPEAT_INFINITE);
@@ -76,7 +75,6 @@ static void eq_stop(void) {
     }
     for (int i = 0; i < 2; i++) {
         lv_anim_delete(s_rings[i], NULL);
-        lv_obj_set_style_transform_scale(s_rings[i], 256, 0);
         lv_obj_set_style_opa(s_rings[i], LV_OPA_60, 0);
     }
 }
@@ -199,14 +197,14 @@ static void voice_enter(void *ctx) {
 
     // 麦克风 + 波纹
     lv_obj_t *micwrap = lv_obj_create(body);
-    lv_obj_set_size(micwrap, 84, 84);
+    lv_obj_set_size(micwrap, 72, 72);
     lv_obj_set_style_bg_opa(micwrap, LV_OPA_TRANSP, 0);
     lv_obj_set_style_border_width(micwrap, 0, 0);
     lv_obj_set_style_pad_all(micwrap, 0, 0);
     lv_obj_set_scrollbar_mode(micwrap, LV_SCROLLBAR_MODE_OFF);
     for (int i = 0; i < 2; i++) {
         lv_obj_t *ring = lv_obj_create(micwrap);
-        lv_obj_set_size(ring, 64, 64);
+        lv_obj_set_size(ring, 56, 56);
         lv_obj_set_style_radius(ring, LV_RADIUS_CIRCLE, 0);
         lv_obj_set_style_bg_opa(ring, LV_OPA_TRANSP, 0);
         lv_obj_set_style_border_color(ring, lv_color_hex(CW_C_PINK), 0);
@@ -216,7 +214,7 @@ static void voice_enter(void *ctx) {
         s_rings[i] = ring;
     }
     lv_obj_t *mic = lv_obj_create(micwrap);
-    lv_obj_set_size(mic, 56, 56);
+    lv_obj_set_size(mic, 48, 48);
     lv_obj_set_style_radius(mic, LV_RADIUS_CIRCLE, 0);
     lv_obj_set_style_bg_color(mic, lv_color_hex(0x3A2A52), 0);
     lv_obj_set_style_border_color(mic, lv_color_hex(CW_C_PINK), 0);
@@ -227,7 +225,7 @@ static void voice_enter(void *ctx) {
 
     // EQ 条
     lv_obj_t *bars = lv_obj_create(body);
-    lv_obj_set_size(bars, 120, 34);
+    lv_obj_set_size(bars, 120, 28);
     lv_obj_set_style_bg_opa(bars, LV_OPA_TRANSP, 0);
     lv_obj_set_style_border_width(bars, 0, 0);
     lv_obj_set_style_pad_all(bars, 0, 0);
@@ -248,17 +246,21 @@ static void voice_enter(void *ctx) {
     }
 
     s_status = cw_label(body, cw_str(CW_S_HOLD_OK_RECORD));
-    lv_obj_t *sub = cw_label_small(body, cw_str(CW_S_ONDEVICE_MEMO));
+    cw_label_small(body, cw_str(CW_S_ONDEVICE_MEMO));
 
     for (int i = 0; i < VOICE_SLOTS; i++) {
         lv_obj_t *row = cw_card(body);
         lv_obj_set_width(row, LV_PCT(100));
-        lv_obj_set_height(row, 38);
+        lv_obj_set_height(row, 32);
+        lv_obj_set_flex_align(row, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_START,
+                              LV_FLEX_ALIGN_START);
         cw_label(row, "");
         s_rows[i] = row;
     }
     refresh_rows();
-    cw_hint_bar(s_scr, "Hold OK: Rec", "OK: Play");
+    // 本页截获了 OK 长按(录音),全局的"长按 OK 返回"在这里失效;
+    // 唯一的退出是全局的"长按 DN 回首页",必须写进提示条,否则用户会以为卡死了。
+    cw_hint_bar(s_scr, "Hold OK: Rec", "Hold DN: Home");
 }
 
 static void voice_exit(void) {

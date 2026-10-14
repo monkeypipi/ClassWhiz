@@ -25,25 +25,39 @@ extern "C" {
 #define CW_W 240
 #define CW_H 320
 
-// 生成字体(assets/fonts/cw_font_14.c 等由 lv_font_conv 产生)
+// 生成字体:字符清单 assets/fonts/symbols.txt 由 tools/extract_font_inventory.py 从
+// main/ 的字符串字面量提取,再用 lv_font_conv 生成 main/fonts/cw_font_14.c 与
+// cw_font_16.c(完整命令见 assets/README.md)。新增中文字符串后必须重跑这条链,
+// 否则缺字显示成方块。
 LV_FONT_DECLARE(cw_font_14);
 LV_FONT_DECLARE(cw_font_16);
 
 // 初始化字体描述符(含 Montserrat 回退链),在 LVGL 初始化后调用一次。
 void cw_ui_init_fonts(void);
-// 带回退的 14/16 号字体(正文/标题)
+// 带回退的 14/16 号字体(正文/标题)。行高:14px 子集 = 17,16px 子集 = 20,
+// 排版预算按此估算。
+// 课表周视图的七等分窄格(每格不到 30px)连单字母都放不下 14px,那里直接用
+// montserrat_8(行高 10);它没有汉字,只能放数字和 ASCII。
 const lv_font_t *cw_font_body(void);
 const lv_font_t *cw_font_title(void);
 
-// 创建 240x320 屏幕并加载;返回内容容器(已留出状态栏与标题区)。
+// 创建 240x320 屏幕并加载;返回屏幕对象。
 // title 为 NULL 时不画标题栏。
+//
+// 内容区可用高度:无标题 274px(320 - 22 状态栏 - 24 提示条),有标题 244px(再减 30)。
+// 本机只有三个按键、没有触摸,内容区滚不动 —— 子元素必须自己塞进这个预算里,
+// 超出部分会被直接裁掉。
 lv_obj_t *cw_screen_create(const char *title);
 // 屏幕内容容器(状态栏/标题/提示条之外的区域)
 lv_obj_t *cw_screen_content(lv_obj_t *scr);
 // 状态栏:时间 + 电量,需在 tick 中调用更新
 void cw_ui_status_tick(lv_obj_t *scr, const char *time_str, int bat_pct);
-// 卡片容器
+// 卡片容器(宽度撑满、高度随内容)
 lv_obj_t *cw_card(lv_obj_t *parent);
+// 透明行/列容器。lv_obj_create 默认高 LV_DPI_DEF(130px),直接拿来当行容器会撑破卡片
+// 并把后续子元素挤出可视区;这两个助手统一按内容取高。
+lv_obj_t *cw_row(lv_obj_t *parent); // 宽 100%,两端对齐、垂直居中
+lv_obj_t *cw_col(lv_obj_t *parent); // 宽高随内容,左上对齐,行距 2
 // 正文标签(自动选 CJK 字体)
 lv_obj_t *cw_label(lv_obj_t *parent, const char *text);
 lv_obj_t *cw_label_small(lv_obj_t *parent, const char *text); // muted 小字
@@ -63,14 +77,15 @@ lv_obj_t *cw_analog_clock(lv_obj_t *parent, int size, uint32_t accent);
 void cw_clock_tick(lv_obj_t *clock, int hour24, int minute, int second);
 // 天气图标:kind 0=多云 1=晴 2=雨;返回容器(带漂移动画)
 lv_obj_t *cw_weather_icon(lv_obj_t *parent, int kind, int size);
+// 应用九宫格图标:kind 0..8 对应课表/教师/日历/学生证/作业/世界时钟/番茄/语音/设置。
+// 线稿用 LVGL 基本件按 26x26 设计坐标绘制后缩放,白色 2px 描边。
+lv_obj_t *cw_app_icon(lv_obj_t *parent, int kind, int size);
 // 呼吸透明度动画(用于角标/提醒)
 void cw_anim_pulse(lv_obj_t *obj);
 // 绝对 x 位移动画回调(流光扫过等)
 void anim_abs_x_cb(void *var, int32_t v);
 // 删除屏幕前停掉其全部动画与定时器
 void cw_screen_teardown(lv_obj_t *scr);
-// 内容区滚动开关(内容可能溢出的页面启用)
-void cw_screen_set_scroll(lv_obj_t *scr, bool en);
 
 #ifdef __cplusplus
 }

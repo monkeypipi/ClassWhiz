@@ -2,10 +2,6 @@
 #include "cw_app.h"
 #include "cw_ui.h"
 
-static void anim_x_cb(void *var, int32_t v) {
-    lv_obj_set_x((lv_obj_t *)var, (int16_t)v);
-}
-
 static void student_enter(void *ctx) {
     (void)ctx;
     lv_obj_t *scr = cw_screen_create(cw_str(CW_S_STUDENT_ID));
@@ -27,22 +23,27 @@ static void student_enter(void *ctx) {
     lv_obj_set_style_shadow_color(card, lv_color_hex(CW_C_ACCENT), 0);
     lv_obj_set_style_shadow_opa(card, LV_OPA_30, 0);
     lv_obj_set_scrollbar_mode(card, LV_SCROLLBAR_MODE_OFF);
+    lv_obj_set_flex_flow(card, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_flex_align(card, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START,
+                          LV_FLEX_ALIGN_START);
+    lv_obj_set_style_pad_gap(card, 6, 0);
 
-    lv_obj_t *t = cw_label_small(card, "UNIVERSITY · STUDENT CARD");
+    // 卡内可用宽 194px(220 - 左右 pad 12 - 边框 1),14px 字体下 "UNIVERSITY · STUDENT
+    // CARD" 要 208px 会被裁掉,所以英文缩成 STUDENT ID;中文按设计稿原样。
+    lv_obj_t *t = cw_label_small(card, cw_get_lang() == CW_LANG_ZH
+                                           ? "大学 · 学生证"
+                                           : "UNIVERSITY · STUDENT ID");
     lv_obj_set_style_text_color(t, lv_color_hex(0x9DC2FF), 0);
 
-    lv_obj_t *row = lv_obj_create(card);
-    lv_obj_set_width(row, LV_PCT(100));
-    lv_obj_set_style_bg_opa(row, LV_OPA_TRANSP, 0);
-    lv_obj_set_style_border_width(row, 0, 0);
-    lv_obj_set_style_pad_all(row, 0, 0);
-    lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
+    // 卡内可用宽 194px:"ZHANG Hang" 一项就要 95.8px,头像 44 + 二维码 52 + 两个
+    // 10px 间距会撑到 212px 把二维码挤出去,所以缩到头像 36 / 二维码 48 / 间距 6。
+    lv_obj_t *row = cw_row(card);
     lv_obj_set_flex_align(row, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER,
                           LV_FLEX_ALIGN_CENTER);
-    lv_obj_set_style_pad_gap(row, 10, 0);
+    lv_obj_set_style_pad_gap(row, 6, 0);
 
     lv_obj_t *av = lv_obj_create(row);
-    lv_obj_set_size(av, 44, 44);
+    lv_obj_set_size(av, 36, 36);
     lv_obj_set_style_radius(av, LV_RADIUS_CIRCLE, 0);
     lv_obj_set_style_bg_color(av, lv_color_hex(CW_C_ACCENT), 0);
     lv_obj_set_style_border_width(av, 0, 0);
@@ -52,13 +53,9 @@ static void student_enter(void *ctx) {
     lv_obj_set_style_text_color(il, lv_color_hex(0xFFFFFF), 0);
     lv_obj_center(il);
 
-    lv_obj_t *mid = lv_obj_create(row);
-    lv_obj_set_flex_flow(mid, LV_FLEX_FLOW_COLUMN);
+    lv_obj_t *mid = cw_col(row);
     lv_obj_set_style_pad_gap(mid, 1, 0);
     lv_obj_set_flex_grow(mid, 1);
-    lv_obj_set_style_bg_opa(mid, LV_OPA_TRANSP, 0);
-    lv_obj_set_style_border_width(mid, 0, 0);
-    lv_obj_set_style_pad_all(mid, 0, 0);
     lv_obj_t *nm = cw_label(mid, st->name);
     lv_obj_set_style_text_font(nm, cw_font_title(), 0);
     lv_obj_t *no = cw_label(mid, st->student_no);
@@ -66,11 +63,11 @@ static void student_enter(void *ctx) {
 
     // 二维码占位(演示):棋盘格
     lv_obj_t *qr = lv_obj_create(row);
-    lv_obj_set_size(qr, 52, 52);
+    lv_obj_set_size(qr, 48, 48);
     lv_obj_set_style_bg_color(qr, lv_color_hex(0xFFFFFF), 0);
     lv_obj_set_style_radius(qr, 6, 0);
     lv_obj_set_style_border_width(qr, 0, 0);
-    lv_obj_set_style_pad_all(qr, 5, 0);
+    lv_obj_set_style_pad_all(qr, 4, 0);
     lv_obj_set_layout(qr, LV_LAYOUT_GRID);
     static const int32_t col[] = {7, 7, 7, 7, 7, LV_GRID_TEMPLATE_LAST};
     static const int32_t r[] = {7, 7, 7, 7, 7, LV_GRID_TEMPLATE_LAST};
@@ -88,9 +85,12 @@ static void student_enter(void *ctx) {
         lv_obj_set_style_radius(px, 0, 0);
     }
 
+    // 专业一行 219.9px 超出卡内 194px,允许折行(卡片高度还有 30px 余量)
     lv_obj_t *pg = cw_label(card,
                             cw_get_lang() == CW_LANG_ZH ? st->program_zh : st->program_en);
     lv_obj_set_style_text_color(pg, lv_color_hex(0xC6D0E4), 0);
+    lv_obj_set_width(pg, LV_PCT(100));
+    lv_label_set_long_mode(pg, LV_LABEL_LONG_WRAP);
     char vt[48];
     snprintf(vt, sizeof(vt), "%s %s",
              cw_get_lang() == CW_LANG_ZH ? "有效期至" : "Valid thru", st->valid_thru);
@@ -116,7 +116,7 @@ static void student_enter(void *ctx) {
     lv_anim_start(&a);
 
     cw_label_small(body, cw_get_lang() == CW_LANG_ZH ? "演示身份 · 二维码编码学号"
-                                                    : "Demo identity · QR = student no.");
+                                                     : "Demo ID · QR = student no.");
     cw_hint_bar(scr, "Hold OK: Back", NULL);
 }
 

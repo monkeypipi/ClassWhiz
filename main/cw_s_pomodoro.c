@@ -9,7 +9,14 @@ static lv_obj_t *s_arc;
 static lv_obj_t *s_time_label;
 static lv_obj_t *s_phase_label;
 static lv_obj_t *s_dots_label;
+static lv_obj_t *s_btn;
 static int s_preset; // 0=25/5, 1=50/10
+
+// 按钮文字随状态切换,三处调用共用一个助手,避免中英文案走散
+static void pomo_set_btn(bool running) {
+    lv_obj_t *l = lv_obj_get_child(s_btn, 0);
+    lv_label_set_text(l, cw_str(running ? CW_S_PAUSE : CW_S_START));
+}
 
 static void pomo_refresh(uint64_t now_ms) {
     cw_pomo_t *p = cw_app_pomo();
@@ -65,22 +72,25 @@ static void pomo_enter(void *ctx) {
     lv_obj_remove_flag(s_arc, LV_OBJ_FLAG_CLICKABLE);
     lv_arc_set_value(s_arc, 100);
 
-    s_time_label = lv_label_create(body);
+    // 时间与阶段放在环内,否则 244px 的预算塞不下(见 cw_ui.h)
+    s_time_label = lv_label_create(s_arc);
     lv_label_set_text(s_time_label, "25:00");
     lv_obj_set_style_text_font(s_time_label, &lv_font_montserrat_20, 0);
     lv_obj_set_style_text_color(s_time_label, lv_color_hex(CW_C_TEXT), 0);
-    s_phase_label = lv_label_create(body);
+    lv_obj_align(s_time_label, LV_ALIGN_CENTER, 0, -8);
+    s_phase_label = lv_label_create(s_arc);
     lv_obj_set_style_text_font(s_phase_label, &lv_font_montserrat_14, 0);
     lv_obj_set_style_text_color(s_phase_label, lv_color_hex(0x7FB0FF), 0);
+    lv_obj_align(s_phase_label, LV_ALIGN_CENTER, 0, 14);
 
     // 预设
     lv_obj_t *seg = cw_seg(body);
     cw_seg_add(seg, "25/5", s_preset == 0);
     cw_seg_add(seg, "50/10", s_preset == 1);
 
-    lv_obj_t *btn = cw_button(body, "Start");
+    lv_obj_t *btn = cw_button(body, cw_str(CW_S_START));
     lv_obj_set_size(btn, 120, 36);
-    lv_obj_set_user_data(s_scr, btn);
+    s_btn = btn;
 
     s_dots_label = lv_label_create(body);
     lv_obj_set_style_text_font(s_dots_label, &lv_font_montserrat_14, 0);
@@ -112,12 +122,10 @@ static void pomo_key(bsp_btn_t btn, bsp_btn_ev_t ev) {
             changed = cw_pomo_resume(p, ms);
         }
         if (changed) {
-            lv_obj_t *btn = (lv_obj_t *)lv_obj_get_user_data(s_scr);
-            lv_obj_t *l = lv_obj_get_child(btn, 0);
             bool running = (p->state == CW_POMO_FOCUS_RUNNING ||
                             p->state == CW_POMO_BREAK_RUNNING);
-            lv_label_set_text(l, running ? "Pause" : "Start");
-            if (running) cw_anim_pulse(btn);
+            pomo_set_btn(running);
+            if (running) cw_anim_pulse(s_btn);
             cw_app_mark_dirty();
         }
         pomo_refresh(ms);
@@ -129,9 +137,7 @@ static void pomo_tick(uint64_t now_ms) {
     cw_pomo_event_t ev = cw_pomo_tick(p, now_ms);
     if (ev != CW_POMO_EV_NONE) {
         cw_app_mark_dirty();
-        lv_obj_t *btn = (lv_obj_t *)lv_obj_get_user_data(s_scr);
-        lv_obj_t *l = lv_obj_get_child(btn, 0);
-        lv_label_set_text(l, "Start");
+        pomo_set_btn(false);
     }
     pomo_refresh(now_ms);
 }

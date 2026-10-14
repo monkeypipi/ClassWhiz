@@ -16,7 +16,7 @@ idf_component_register(
          "cw_s_pomodoro.c"
          "cw_s_voice.c"
          "cw_s_settings.c"
-         # 中文字体子集(assets/fonts 生成,拷贝到 main/fonts 参与编译,见 assets/README.md)
+         # 中文字体子集(由 assets/fonts/symbols.txt 生成到 main/fonts 参与编译,见 assets/README.md)
          "fonts/cw_font_14.c"
          "fonts/cw_font_16.c"
     INCLUDE_DIRS "."
