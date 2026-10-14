@@ -121,6 +121,8 @@ void cw_app_home(void) {
             s_cur_scr = e->scr;
         }
     }
+    // 回首页会一次性拆掉多层屏幕,不记日志的话串口里看不出这是 home 还是 pop
+    ESP_LOGI(TAG, "home (depth %d)", s_depth);
 }
 
 void cw_app_refresh_top(void) {
