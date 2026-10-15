@@ -253,14 +253,15 @@ int cw_classes_for_day(int day, cw_class_t *out, int max_out) {
         const cw_course_t *course = cw_course(c);
         for (int s = 0; s < course->slot_count && n < max_out; s++) {
             if (course->slots[s].day == day) {
-                // 按节次插入排序(每天课少,直接插入)
+                // 按开始时间插入排序(每天课少,直接插入)
                 int pos = n;
-                while (pos > 0 && out[pos - 1].period > course->slots[s].period) {
+                while (pos > 0 && out[pos - 1].start_min > course->slots[s].start_min) {
                     out[pos] = out[pos - 1];
                     pos--;
                 }
                 out[pos].course = course;
-                out[pos].period = course->slots[s].period;
+                out[pos].start_min = course->slots[s].start_min;
+                out[pos].end_min = course->slots[s].end_min;
                 n++;
             }
         }
@@ -268,18 +269,16 @@ int cw_classes_for_day(int day, cw_class_t *out, int max_out) {
     return n;
 }
 
-cw_class_state_t cw_class_state(int day, int period, int today_day, int now_min) {
+cw_class_state_t cw_class_state(int day, int start_min, int end_min, int today_day, int now_min) {
     if (day != today_day) return CW_CLASS_UPCOMING;
-    int start = cw_period_start_min(period);
-    int end = cw_period_end_min(period);
-    if (now_min >= end) return CW_CLASS_DONE;
-    if (now_min >= start) return CW_CLASS_NOW;
-    // 今天尚未开始的第一节约课标 NEXT,其余 UPCOMING
+    if (now_min >= end_min) return CW_CLASS_DONE;
+    if (now_min >= start_min) return CW_CLASS_NOW;
+    // 今天尚未开始的第一节课标 NEXT,其余 UPCOMING
     cw_class_t classes[CW_MAX_SLOTS_PER_DAY];
     int n = cw_classes_for_day(day, classes, CW_MAX_SLOTS_PER_DAY);
     for (int i = 0; i < n; i++) {
-        if (cw_period_start_min(classes[i].period) > now_min) {
-            return (classes[i].period == period) ? CW_CLASS_NEXT : CW_CLASS_UPCOMING;
+        if (classes[i].start_min > now_min) {
+            return (classes[i].start_min == start_min) ? CW_CLASS_NEXT : CW_CLASS_UPCOMING;
         }
     }
     return CW_CLASS_UPCOMING;
@@ -291,7 +290,7 @@ bool cw_next_class(int today_day, int now_min, int *out_day, cw_class_t *out_cla
         int day = (today_day + d) % 7;
         int n = cw_classes_for_day(day, classes, CW_MAX_SLOTS_PER_DAY);
         for (int i = 0; i < n; i++) {
-            int start = cw_period_start_min(classes[i].period);
+            int start = classes[i].start_min;
             if (d == 0 && start <= now_min) continue;
             if (out_day) *out_day = day;
             if (out_class) *out_class = classes[i];

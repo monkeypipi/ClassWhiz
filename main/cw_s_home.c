@@ -105,7 +105,7 @@ static void today_tick(uint64_t now_ms) {
     int nday = 0;
     cw_class_t cls;
     if (cw_next_class(day, minute, &nday, &cls)) {
-        int start = cw_period_start_min(cls.period);
+        int start = cls.start_min;
         int mins_left = (nday - day) * 1440 + start - minute;
         char dur[24];
         cw_format_dur(mins_left, dur, sizeof(dur));
@@ -118,8 +118,8 @@ static void today_tick(uint64_t now_ms) {
         lv_label_set_text(s_next_tag, tag);
         char tb[16];
         char te[16];
-        cw_format_time(start, true, tb, sizeof(tb));
-        cw_format_time(cw_period_end_min(cls.period), true, te, sizeof(te));
+        cw_format_time(cls.start_min, true, tb, sizeof(tb));
+        cw_format_time(cls.end_min, true, te, sizeof(te));
         char ntime[40];
         snprintf(ntime, sizeof(ntime), "%s-%s", tb, te);
         lv_obj_t *ntime_l = (lv_obj_t *)lv_obj_get_user_data(s_next_card);

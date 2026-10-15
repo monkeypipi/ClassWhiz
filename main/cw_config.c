@@ -36,9 +36,9 @@ static void load_defaults(void) {
     strncpy(s_courses[0].room, "LSK 200", sizeof(s_courses[0].room) - 1);
     s_courses[0].teacher = 1;
     s_courses[0].color = 0x8B5CF6;
-    s_courses[0].slots[0] = (cw_slot_t){CW_DAY_MON, 1};
-    s_courses[0].slots[1] = (cw_slot_t){CW_DAY_TUE, 1};
-    s_courses[0].slots[2] = (cw_slot_t){CW_DAY_THU, 1};
+    s_courses[0].slots[0] = (cw_slot_t){CW_DAY_MON, 540, 590};
+    s_courses[0].slots[1] = (cw_slot_t){CW_DAY_TUE, 540, 590};
+    s_courses[0].slots[2] = (cw_slot_t){CW_DAY_THU, 540, 590};
     s_courses[0].slot_count = 3;
     // CPSC 110
     strncpy(s_courses[1].code, "CPSC 110", sizeof(s_courses[1].code) - 1);
@@ -47,10 +47,10 @@ static void load_defaults(void) {
     strncpy(s_courses[1].room, "DMP 110", sizeof(s_courses[1].room) - 1);
     s_courses[1].teacher = 0;
     s_courses[1].color = 0x4C8DFF;
-    s_courses[1].slots[0] = (cw_slot_t){CW_DAY_MON, 3};
-    s_courses[1].slots[1] = (cw_slot_t){CW_DAY_TUE, 3};
-    s_courses[1].slots[2] = (cw_slot_t){CW_DAY_WED, 3};
-    s_courses[1].slots[3] = (cw_slot_t){CW_DAY_FRI, 3};
+    s_courses[1].slots[0] = (cw_slot_t){CW_DAY_MON, 660, 740};
+    s_courses[1].slots[1] = (cw_slot_t){CW_DAY_TUE, 660, 740};
+    s_courses[1].slots[2] = (cw_slot_t){CW_DAY_WED, 660, 740};
+    s_courses[1].slots[3] = (cw_slot_t){CW_DAY_FRI, 660, 740};
     s_courses[1].slot_count = 4;
     // CPSC 210
     strncpy(s_courses[2].code, "CPSC 210", sizeof(s_courses[2].code) - 1);
@@ -59,8 +59,8 @@ static void load_defaults(void) {
     strncpy(s_courses[2].room, "ICCS X836", sizeof(s_courses[2].room) - 1);
     s_courses[2].teacher = 0;
     s_courses[2].color = 0x22B8A8;
-    s_courses[2].slots[0] = (cw_slot_t){CW_DAY_TUE, 6};
-    s_courses[2].slots[1] = (cw_slot_t){CW_DAY_WED, 6};
+    s_courses[2].slots[0] = (cw_slot_t){CW_DAY_TUE, 930, 1010};
+    s_courses[2].slots[1] = (cw_slot_t){CW_DAY_WED, 930, 1010};
     s_courses[2].slot_count = 2;
 
     // 教师默认
@@ -260,7 +260,8 @@ static cJSON *course_to_json(const cw_course_mut_t *c) {
     for (int i = 0; i < c->slot_count; i++) {
         cJSON *s = cJSON_CreateObject();
         cJSON_AddNumberToObject(s, "day", c->slots[i].day);
-        cJSON_AddNumberToObject(s, "period", c->slots[i].period);
+        cJSON_AddNumberToObject(s, "start", c->slots[i].start_min);
+        cJSON_AddNumberToObject(s, "end", c->slots[i].end_min);
         cJSON_AddItemToArray(slots, s);
     }
     cJSON_AddItemToObject(obj, "slots", slots);
@@ -361,10 +362,12 @@ static void json_to_course(const cJSON *obj, cw_course_mut_t *c) {
         for (int i = 0; i < n && i < CW_MAX_SLOTS_PER_DAY; i++) {
             const cJSON *s = cJSON_GetArrayItem(item, i);
             const cJSON *day = cJSON_GetObjectItem(s, "day");
-            const cJSON *period = cJSON_GetObjectItem(s, "period");
-            if (cJSON_IsNumber(day) && cJSON_IsNumber(period)) {
+            const cJSON *start = cJSON_GetObjectItem(s, "start");
+            const cJSON *end = cJSON_GetObjectItem(s, "end");
+            if (cJSON_IsNumber(day) && cJSON_IsNumber(start) && cJSON_IsNumber(end)) {
                 c->slots[c->slot_count].day = (uint8_t)day->valueint;
-                c->slots[c->slot_count].period = (uint8_t)period->valueint;
+                c->slots[c->slot_count].start_min = (uint16_t)start->valueint;
+                c->slots[c->slot_count].end_min = (uint16_t)end->valueint;
                 c->slot_count++;
             }
         }

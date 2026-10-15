@@ -25,10 +25,10 @@ static int test_schedule(void) {
     cw_class_t classes[CW_MAX_SLOTS_PER_DAY];
     int n = cw_classes_for_day(CW_DAY_TUE, classes, CW_MAX_SLOTS_PER_DAY);
     CHECK(n == 3);
-    CHECK(classes[0].period == 1);
+    CHECK(classes[0].start_min == 540);
     CHECK(strcmp(classes[0].course->code, "MATH 100") == 0);
-    CHECK(classes[1].period == 3);
-    CHECK(classes[2].period == 6);
+    CHECK(classes[1].start_min == 660);
+    CHECK(classes[2].start_min == 930);
     CHECK(strcmp(classes[2].course->code, "CPSC 210") == 0);
     n = cw_classes_for_day(CW_DAY_SUN, classes, CW_MAX_SLOTS_PER_DAY);
     CHECK(n == 0);
@@ -43,24 +43,24 @@ static int test_next_class(void) {
     // 周二 14:46 -> 下一节是周二 P6 CPSC 210
     CHECK(cw_next_class(CW_DAY_TUE, CW_DEMO_TODAY_MIN, &day, &cls));
     CHECK(day == CW_DAY_TUE);
-    CHECK(cls.period == 6);
+    CHECK(cls.start_min == 930);
     // 周二 17:00 之后 -> 周三 P3
     CHECK(cw_next_class(CW_DAY_TUE, 17 * 60, &day, &cls));
-    CHECK(day == CW_DAY_WED && cls.period == 3);
+    CHECK(day == CW_DAY_WED && cls.start_min == 660);
     // 周日晚上 -> 周一 P1
     CHECK(cw_next_class(CW_DAY_SUN, 23 * 60, &day, &cls));
-    CHECK(day == CW_DAY_MON && cls.period == 1);
+    CHECK(day == CW_DAY_MON && cls.start_min == 540);
     return 0;
 }
 
 static int test_class_state(void) {
     // 周二 14:46:P1/P3 已上完,P6 为 NEXT
-    CHECK(cw_class_state(CW_DAY_TUE, 1, CW_DAY_TUE, CW_DEMO_TODAY_MIN) == CW_CLASS_DONE);
-    CHECK(cw_class_state(CW_DAY_TUE, 6, CW_DAY_TUE, CW_DEMO_TODAY_MIN) == CW_CLASS_NEXT);
+    CHECK(cw_class_state(CW_DAY_TUE, 540, 590, CW_DAY_TUE, CW_DEMO_TODAY_MIN) == CW_CLASS_DONE);
+    CHECK(cw_class_state(CW_DAY_TUE, 930, 1010, CW_DAY_TUE, CW_DEMO_TODAY_MIN) == CW_CLASS_NEXT);
     // 上课中:周二 15:40 P6
-    CHECK(cw_class_state(CW_DAY_TUE, 6, CW_DAY_TUE, 15 * 60 + 40) == CW_CLASS_NOW);
+    CHECK(cw_class_state(CW_DAY_TUE, 930, 1010, CW_DAY_TUE, 15 * 60 + 40) == CW_CLASS_NOW);
     // 非今天
-    CHECK(cw_class_state(CW_DAY_WED, 3, CW_DAY_TUE, CW_DEMO_TODAY_MIN) == CW_CLASS_UPCOMING);
+    CHECK(cw_class_state(CW_DAY_WED, 660, 740, CW_DAY_TUE, CW_DEMO_TODAY_MIN) == CW_CLASS_UPCOMING);
     return 0;
 }
 

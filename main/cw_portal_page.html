@@ -95,14 +95,14 @@ body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang 
 .modal-box { background: #fff; margin: 14px auto; max-width: 620px; border-radius: 18px; padding: 18px 16px; }
 .modal-box h3 { font-size: 16.5px; margin-bottom: 4px; }
 .modal-box .sub { font-size: 12.5px; color: var(--text-2); margin-bottom: 14px; }
-.sched-grid { display: grid; grid-template-columns: 30px repeat(7, 1fr); gap: 3px; font-size: 10.5px; }
-.sched-grid .hdr { text-align: center; padding: 7px 1px; font-weight: 700; background: #f1f4f9; border-radius: 7px; color: var(--text-2); }
-.sched-grid .plbl { text-align: center; padding: 9px 1px; background: #f1f4f9; border-radius: 7px; font-weight: 700; color: var(--text-2); }
-.cell { min-height: 40px; border: 1.5px solid var(--border); border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 2px; text-align: center; font-weight: 600; line-height: 1.25; word-break: break-all; background: #fbfcfe; transition: transform .08s; }
-.cell:active { transform: scale(.93); }
-.cell.mine { color: #fff; border-color: transparent; box-shadow: 0 2px 8px rgba(0,0,0,.18); }
-.cell.other { color: #fff; opacity: .55; border-color: transparent; }
-.cell.conflict-hint { border-color: var(--danger); }
+.time-grid { display: grid; grid-template-columns: 44px repeat(7, 1fr); gap: 2px; font-size: 10px; }
+.time-grid .th { text-align: center; padding: 6px 1px; font-weight: 700; background: #f1f4f9; border-radius: 6px; color: var(--text-2); font-size: 11px; }
+.time-grid .tlbl { text-align: right; padding: 1px 5px 1px 0; color: var(--text-3); font-size: 9px; line-height: 22px; }
+.time-grid .tlbl.hour { font-weight: 700; color: var(--text-2); font-size: 10px; }
+.tcell { min-height: 22px; border: 1px solid #eef0f4; border-radius: 5px; cursor: pointer; background: #fbfcfe; }
+.tcell:active { background: #e8efff; }
+.tcell.mine { border-color: transparent; color: #fff; font-weight: 700; font-size: 9px; display: flex; align-items: center; justify-content: center; }
+.tcell.other { border-color: transparent; color: #fff; opacity: .45; font-size: 8px; display: flex; align-items: center; justify-content: center; overflow: hidden; white-space: nowrap; }
 .modal-btns { display: flex; gap: 10px; margin-top: 16px; }
 .modal-btns .btn { flex: 1; }
 
@@ -238,7 +238,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang 
   <div class="modal-box">
     <h3 id="sched-title">排课</h3>
     <div class="sub">点按格子添加 / 取消该时段 · 有色格子为其他课程占用</div>
-    <div class="sched-grid" id="sched-grid"></div>
+    <div class="time-grid" id="sched-grid"></div>
     <div class="modal-btns">
       <button class="btn btn-primary" onclick="closeSched(true)">确定</button>
       <button class="btn btn-ghost" onclick="closeSched(false)">取消</button>
@@ -316,7 +316,7 @@ function renderCourses() {
   }
   el.innerHTML = config.courses.map((c, i) => {
     const slots = c.slots.length
-      ? c.slots.map(s => `<span class="tag">周${dayName(s.day)} ${s.period}节</span>`).join('')
+      ? c.slots.map(s => `<span class="tag">周${dayName(s.day)} ${fmtT(s.start)}-${fmtT(s.end)}</span>`).join('')
       : '<span style="color:var(--text-3);font-size:12.5px;">未排课</span>';
     return `<div class="item">
       <div class="item-top"><span class="dot" style="background:${hex(c.color)}"></span>
@@ -372,11 +372,15 @@ function delCourse(i) {
   config.courses.splice(i, 1); renderCourses();
 }
 
-/* ---------- 周历排课 ---------- */
-let schedIdx = -1, schedDraft = [];
+/* ---------- 周历排课 (时间轴) ---------- */
+let schedIdx = -1, schedDraft = []; // {day, start, end}
+const DAY_START = 8 * 60;   // 08:00
+const DAY_END = 20 * 60;    // 20:00
+const SLOT = 30;            // 30 分钟一格
+
 function openSched(i) {
   schedIdx = i;
-  schedDraft = config.courses[i].slots.map(s => ({day: s.day, period: s.period}));
+  schedDraft = config.courses[i].slots.map(s => ({day: s.day, start: s.start, end: s.end}));
   document.getElementById('sched-title').textContent = '📅 排课：' + (config.courses[i].code || '新课程');
   renderSchedGrid();
   document.getElementById('sched-modal').classList.add('open');
@@ -384,47 +388,84 @@ function openSched(i) {
 function closeSched(save) {
   if (save && schedIdx >= 0) {
     config.courses[schedIdx].slots = schedDraft;
-    // 按星期+节次排序
-    config.courses[schedIdx].slots.sort((a, b) => a.day - b.day || a.period - b.period);
+    config.courses[schedIdx].slots.sort((a, b) => a.day - b.day || a.start - b.start);
     renderCourses();
   }
   document.getElementById('sched-modal').classList.remove('open');
   schedIdx = -1;
 }
+function fmtT(m) { return Math.floor(m/60) + ':' + String(m%60).padStart(2,'0'); }
 function renderSchedGrid() {
   const grid = document.getElementById('sched-grid');
   const cur = config.courses[schedIdx];
-  let html = '<div class="hdr"></div>';
-  ['一','二','三','四','五','六','日'].forEach(d => html += `<div class="hdr">周${d}</div>`);
-  for (let p = 1; p <= 7; p++) {
-    html += `<div class="plbl">${p}</div>`;
+  let html = '<div class="th"></div>';
+  ['一','二','三','四','五','六','日'].forEach(d => html += `<div class="th">周${d}</div>`);
+  // 构建占用表: key = day*10000 + slotStart
+  const occMap = {};
+  config.courses.forEach((c, ci) => {
+    c.slots.forEach(s => {
+      for (let t = s.start; t < s.end; t += SLOT) {
+        occMap[s.day * 100000 + t] = ci;
+      }
+    });
+  });
+  const draftMap = {};
+  schedDraft.forEach(s => {
+    for (let t = s.start; t < s.end; t += SLOT) {
+      draftMap[s.day * 100000 + t] = true;
+    }
+  });
+  for (let t = DAY_START; t < DAY_END; t += SLOT) {
+    const isHour = t % 60 === 0;
+    html += `<div class="tlbl${isHour ? ' hour' : ''}">${isHour ? fmtT(t) : ''}</div>`;
     for (let d = 0; d < 7; d++) {
-      const mine = schedDraft.some(s => s.day === d && s.period === p);
-      let occ = -1;
-      config.courses.forEach((c, ci) => {
-        if (ci !== schedIdx && c.slots.some(s => s.day === d && s.period === p)) occ = ci;
-      });
-      let cls = 'cell', style = '', label = '';
-      if (mine) { cls += ' mine'; style = `background:${hex(cur.color)};`; label = cur.code || '●'; }
-      else if (occ >= 0) { cls += ' other'; style = `background:${hex(config.courses[occ].color)};`; label = config.courses[occ].code; }
-      html += `<div class="${cls}" style="${style}" onclick="toggleSlot(${d},${p})">${esc(label)}</div>`;
+      const key = d * 100000 + t;
+      const mine = draftMap[key];
+      const occ = occMap[key];
+      let cls = 'tcell', style = '', label = '';
+      if (mine) {
+        cls += ' mine'; style = `background:${hex(cur.color)};`; label = cur.code || '●';
+      } else if (occ !== undefined && occ !== schedIdx) {
+        cls += ' other'; style = `background:${hex(config.courses[occ].color)};`;
+        label = config.courses[occ].code;
+      }
+      html += `<div class="${cls}" style="${style}" onclick="toggleSlot(${d},${t})">${esc(label)}</div>`;
     }
   }
   grid.innerHTML = html;
 }
-function toggleSlot(day, period) {
-  const k = schedDraft.findIndex(s => s.day === day && s.period === period);
-  if (k >= 0) { schedDraft.splice(k, 1); }
-  else {
+// 点击格子:切换该 30 分钟块;按住连续点可扩展(简化:每次点切换 1 小时块)
+function toggleSlot(day, t) {
+  // 找是否已在 draft 中
+  const idx = schedDraft.findIndex(s => s.day === day && s.start <= t && t < s.end);
+  if (idx >= 0) {
+    // 已有:移除这个 30min 块,可能拆分
+    const s = schedDraft[idx];
+    schedDraft.splice(idx, 1);
+    if (s.start < t) schedDraft.push({day, start: s.start, end: t});
+    if (t + SLOT < s.end) schedDraft.push({day, start: t + SLOT, end: s.end});
+  } else {
+    // 检查冲突
     const conflict = config.courses.findIndex((c, ci) =>
-      ci !== schedIdx && c.slots.some(s => s.day === day && s.period === period));
-    if (conflict >= 0 && !confirm(`该时段已有 ${config.courses[conflict].code}，确定覆盖？`)) return;
+      ci !== schedIdx && c.slots.some(s => s.day === day && s.start < t + SLOT && t < s.end));
     if (conflict >= 0) {
-      const cc = config.courses[conflict];
-      cc.slots = cc.slots.filter(s => !(s.day === day && s.period === period));
+      if (!confirm(`该时段已有 ${config.courses[conflict].code}，确定覆盖？`)) return;
+      // 移除冲突
+      config.courses[conflict].slots = config.courses[conflict].slots.flatMap(s => {
+        if (s.day !== day || s.end <= t || s.start >= t + SLOT) return [s];
+        const out = [];
+        if (s.start < t) out.push({...s, end: t});
+        if (s.end > t + SLOT) out.push({...s, start: t + SLOT});
+        return out;
+      });
     }
-    if (schedDraft.length >= 4) { toast('一门课最多 4 个时段'); return; }
-    schedDraft.push({day, period});
+    // 尝试与相邻 draft 块合并
+    let ns = t, ne = t + SLOT;
+    const before = schedDraft.findIndex(s => s.day === day && s.end === ns);
+    if (before >= 0) { ns = schedDraft[before].start; schedDraft.splice(before, 1); }
+    const after = schedDraft.findIndex(s => s.day === day && s.start === ne);
+    if (after >= 0) { ne = schedDraft[after].end; schedDraft.splice(after, 1); }
+    schedDraft.push({day, start: ns, end: ne});
   }
   renderSchedGrid();
 }

@@ -60,7 +60,7 @@ static void rebuild(void) {
         int n = cw_classes_for_day(s_day, classes, CW_MAX_SLOTS_PER_DAY);
         for (int i = 0; i < n; i++) {
             cw_class_state_t st =
-                cw_class_state(s_day, classes[i].period, today, now_min);
+                cw_class_state(s_day, classes[i].start_min, classes[i].end_min, today, now_min);
             if (st == CW_CLASS_NOW || st == CW_CLASS_NEXT) {
                 lv_obj_t *sel = lv_obj_get_child(s_listbox, (uint32_t)i);
                 if (sel) lv_obj_scroll_to_view(sel, LV_ANIM_OFF);
@@ -92,7 +92,7 @@ static void build_list(void) {
     bool compact = n > 3;
     for (int i = 0; i < n; i++) {
         const cw_class_t *c = &classes[i];
-        cw_class_state_t st = cw_class_state(s_day, c->period, today, now_min);
+        cw_class_state_t st = cw_class_state(s_day, c->start_min, c->end_min, today, now_min);
         bool hl = (st == CW_CLASS_NOW || st == CW_CLASS_NEXT);
         lv_obj_t *card = cw_card(s_listbox);
         // 一天最多三节课,listbox 只有 174px(见 cw_ui.h 的预算说明):
@@ -110,8 +110,8 @@ static void build_list(void) {
             lv_obj_set_style_bg_grad_dir(card, LV_GRAD_DIR_HOR, 0);
         }
         char tb[8], te[8];
-        cw_format_time(cw_period_start_min(c->period), true, tb, sizeof(tb));
-        cw_format_time(cw_period_end_min(c->period), true, te, sizeof(te));
+        cw_format_time(c->start_min, true, tb, sizeof(tb));
+        cw_format_time(c->end_min, true, te, sizeof(te));
         char tstr[20];
         snprintf(tstr, sizeof(tstr), "%s-%s", tb, te);
         char title[64];
@@ -231,8 +231,11 @@ static void build_grid(void) {
         int n = cw_classes_for_day(d, classes, CW_MAX_SLOTS_PER_DAY);
         for (int i = 0; i < n; i++) {
             lv_obj_t *blk = lv_obj_create(col);
-            lv_obj_set_size(blk, LV_PCT(100), 24);
-            lv_obj_set_pos(blk, 0, (classes[i].period - 1) * 26 + 1);
+            { int y = (classes[i].start_min - 480) * 26 / 60;
+              int h = (classes[i].end_min - classes[i].start_min) * 26 / 60;
+              if (h < 20) h = 20;
+              lv_obj_set_size(blk, LV_PCT(100), h);
+              lv_obj_set_pos(blk, 0, y + 1); }
             lv_obj_set_style_bg_color(blk, lv_color_hex(classes[i].course->color), 0);
             lv_obj_set_style_radius(blk, 4, 0);
             lv_obj_set_style_border_width(blk, 0, 0);
@@ -363,7 +366,8 @@ static void sched_exit(void) {
 // 课程详情(作为子屏幕)
 typedef struct {
     int day;
-    int period;
+    int start_min;
+    int end_min;
 } detail_ctx_t;
 
 static detail_ctx_t s_detail_ctx;
@@ -377,7 +381,7 @@ static void detail_enter(void *ctx) {
     int n = cw_classes_for_day(s_detail_ctx.day, classes, CW_MAX_SLOTS_PER_DAY);
     const cw_course_t *course = NULL;
     for (int i = 0; i < n; i++) {
-        if (classes[i].period == s_detail_ctx.period) {
+        if (classes[i].start_min == s_detail_ctx.start_min) {
             course = classes[i].course;
             break;
         }
@@ -393,8 +397,8 @@ static void detail_enter(void *ctx) {
     lv_obj_set_style_text_font(code, cw_font_title(), 0);
     cw_label(card, cw_get_lang() == CW_LANG_ZH ? course->title_zh : course->title_en);
     char tb[8], te[8];
-    cw_format_time(cw_period_start_min(s_detail_ctx.period), true, tb, sizeof(tb));
-    cw_format_time(cw_period_end_min(s_detail_ctx.period), true, te, sizeof(te));
+    cw_format_time(s_detail_ctx.start_min, true, tb, sizeof(tb));
+    cw_format_time(s_detail_ctx.end_min, true, te, sizeof(te));
     char when[64];
     snprintf(when, sizeof(when), "%s %s-%s", day_name(s_detail_ctx.day), tb, te);
     cw_label_small(card, when);
@@ -460,7 +464,7 @@ static void sched_key(bsp_btn_t btn, bsp_btn_ev_t ev) {
         int n = cw_classes_for_day(s_day, classes, CW_MAX_SLOTS_PER_DAY);
         int pick = -1;
         for (int i = 0; i < n; i++) {
-            cw_class_state_t st = cw_class_state(s_day, classes[i].period, today, now_min);
+            cw_class_state_t st = cw_class_state(s_day, classes[i].start_min, classes[i].end_min, today, now_min);
             if (st == CW_CLASS_NOW || st == CW_CLASS_NEXT) {
                 pick = i;
                 break;
@@ -469,7 +473,8 @@ static void sched_key(bsp_btn_t btn, bsp_btn_ev_t ev) {
         if (pick < 0 && n > 0) pick = 0;
         if (pick >= 0) {
             s_detail_ctx.day = s_day;
-            s_detail_ctx.period = classes[pick].period;
+            s_detail_ctx.start_min = classes[pick].start_min;
+            s_detail_ctx.end_min = classes[pick].end_min;
             cw_app_push(&s_detail_def, &s_detail_ctx);
         }
     }

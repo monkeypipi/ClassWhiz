@@ -102,10 +102,11 @@ const char *cw_str(cw_str_id_t id);
 int cw_period_start_min(int period); // period: 1..7
 int cw_period_end_min(int period);
 
-// 课程
+// 课程时间槽:星期 + 开始/结束分钟数(0..1439)
 typedef struct {
-    uint8_t day;     // 0..6
-    uint8_t period;  // 1..7
+    uint8_t day;         // 0..6 (周一=0)
+    uint16_t start_min;  // 如 9*60=540 表示 09:00
+    uint16_t end_min;    // 如 10*60+50=650 表示 10:50
 } cw_slot_t;
 
 typedef struct {
@@ -128,7 +129,8 @@ void cw_data_sync_views(void);
 // 某天课程(按节次排序)
 typedef struct {
     const cw_course_t *course;
-    uint8_t period;
+    uint16_t start_min;
+    uint16_t end_min;
 } cw_class_t;
 
 int cw_classes_for_day(int day, cw_class_t *out, int max_out);
@@ -140,7 +142,7 @@ typedef enum {
     CW_CLASS_UPCOMING,
 } cw_class_state_t;
 
-cw_class_state_t cw_class_state(int day, int period, int today_day, int now_min);
+cw_class_state_t cw_class_state(int day, int start_min, int end_min, int today_day, int now_min);
 
 // 下一节课:在今后 8 天内搜索;返回 false 表示无课
 bool cw_next_class(int today_day, int now_min, int *out_day, cw_class_t *out_class);
