@@ -35,6 +35,18 @@ body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
 .color-dot { display: inline-block; width: 16px; height: 16px; border-radius: 50%; vertical-align: middle; margin-right: 6px; }
 .footer { text-align: center; padding: 20px; color: #999; font-size: 12px; }
 .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #1d1d1f; color: white; padding: 12px 24px; border-radius: 8px; font-size: 14px; display: none; z-index: 100; }
+/* 周历排课 */
+.modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 50; overflow-y: auto; }
+.modal.open { display: block; }
+.modal-box { background: white; margin: 20px auto; max-width: 600px; border-radius: 12px; padding: 16px; }
+.modal-box h3 { margin-bottom: 12px; }
+.sched-grid { display: grid; grid-template-columns: 36px repeat(7, 1fr); gap: 2px; font-size: 11px; }
+.sched-grid .hdr { text-align: center; padding: 6px 2px; font-weight: 600; background: #f0f0f0; border-radius: 4px; }
+.sched-grid .period-lbl { text-align: center; padding: 8px 2px; background: #f0f0f0; border-radius: 4px; font-weight: 600; }
+.sched-cell { min-height: 36px; border: 1px solid #e0e0e0; border-radius: 4px; display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 2px; text-align: center; word-break: break-all; }
+.sched-cell.occupied { color: white; font-weight: 600; }
+.sched-cell.selected { outline: 2px solid #007aff; outline-offset: -2px; }
+.sched-cell.conflict { outline: 2px solid #ff3b30; outline-offset: -2px; }
 </style>
 </head>
 <body>
@@ -109,6 +121,18 @@ body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
 </div>
 <div class="footer">ClassWhiz · 保存后自动热更新，无需重启</div>
 <div class="toast" id="toast"></div>
+<!-- 周历排课弹窗 -->
+<div class="modal" id="sched-modal">
+  <div class="modal-box">
+    <h3 id="sched-title">排课</h3>
+    <p style="font-size:13px;color:#666;margin-bottom:12px;">点击格子添加/取消该时段，冲突时段会红框提示</p>
+    <div class="sched-grid" id="sched-grid"></div>
+    <div style="display:flex;gap:8px;margin-top:16px;">
+      <button class="btn btn-primary" onclick="closeSched(true)" style="flex:1;">确定</button>
+      <button class="btn btn-small" onclick="closeSched(false)" style="flex:1;">取消</button>
+    </div>
+  </div>
+</div>
 <script>
 let config = {courses:[], teachers:[], tasks:[], student:{}, weather:{cities:[]}};
 
@@ -142,8 +166,9 @@ function renderCourses() {
   el.innerHTML = config.courses.map((c,i) => `
     <div class="course-item">
       <div class="title"><span class="color-dot" style="background:#${c.color.toString(16).padStart(6,'0')}"></span>${c.code} ${c.title_zh||c.title_en}</div>
-      <div class="meta">${c.room||''} · ${c.slots.map(s=>'周'+'一二三四五六日'[s.day]+s.period+'节').join(' ')}</div>
+      <div class="meta">${c.room||''} · ${c.slots.map(s=>'周'+'一二三四五六日'[s.day]+s.period+'节').join(' ')||'未排课'}</div>
       <div class="actions">
+        <button class="btn btn-small" onclick="openSched(${i})">📅 排课</button>
         <button class="btn btn-small" onclick="editCourse(${i})">编辑</button>
         <button class="btn btn-danger" onclick="delCourse(${i})">删除</button>
       </div>
@@ -155,9 +180,87 @@ function addCourse() {
   if (!code) return;
   config.courses.push({code, title_en:code, title_zh:'', room:'', teacher:0, color:0x4C8DFF, slots:[]});
   renderCourses();
+  // 新建后直接打开排课
+  openSched(config.courses.length - 1);
 }
 function editCourse(i) { toast('编辑功能开发中，请删除后重加'); }
 function delCourse(i) { if(confirm('删除?')) { config.courses.splice(i,1); renderCourses(); } }
+
+// ---- 周历排课 ----
+let schedCourseIdx = -1;
+let schedDraft = []; // {day, period} 数组
+
+function openSched(i) {
+  schedCourseIdx = i;
+  const c = config.courses[i];
+  // 深拷贝当前 slots 到草稿
+  schedDraft = c.slots.map(s => ({day: s.day, period: s.period}));
+  document.getElementById('sched-title').textContent = '排课：' + c.code;
+  renderSchedGrid();
+  document.getElementById('sched-modal').classList.add('open');
+}
+
+function closeSched(save) {
+  if (save && schedCourseIdx >= 0) {
+    config.courses[schedCourseIdx].slots = schedDraft;
+    renderCourses();
+    toast('已更新排课，记得点保存');
+  }
+  document.getElementById('sched-modal').classList.remove('open');
+  schedCourseIdx = -1;
+}
+
+function renderSchedGrid() {
+  const grid = document.getElementById('sched-grid');
+  const days = ['一','二','三','四','五','六','日'];
+  let html = '<div class="hdr"></div>';
+  days.forEach(d => html += `<div class="hdr">周${d}</div>`);
+  const cur = config.courses[schedCourseIdx];
+  const curColor = '#'+cur.color.toString(16).padStart(6,'0');
+
+  for (let p = 1; p <= 7; p++) {
+    html += `<div class="period-lbl">${p}</div>`;
+    for (let d = 0; d < 7; d++) {
+      // 检查这个格子被哪门课占用
+      let occupant = -1;
+      config.courses.forEach((c, ci) => {
+        if (c.slots.some(s => s.day === d && s.period === p)) occupant = ci;
+      });
+      const inDraft = schedDraft.some(s => s.day === d && s.period === p);
+      let cls = 'sched-cell', style = '', label = '';
+      if (inDraft) {
+        cls += ' selected occupied'; style = `background:${curColor};`; label = cur.code;
+      } else if (occupant >= 0) {
+        const oc = config.courses[occupant];
+        cls += ' occupied'; style = `background:#${oc.color.toString(16).padStart(6,'0')};opacity:0.7;`;
+        label = oc.code;
+        if (occupant !== schedCourseIdx) cls += ' conflict';
+      }
+      html += `<div class="${cls}" style="${style}" onclick="toggleSlot(${d},${p})">${label}</div>`;
+    }
+  }
+  grid.innerHTML = html;
+}
+
+function toggleSlot(day, period) {
+  const idx = schedDraft.findIndex(s => s.day === day && s.period === period);
+  if (idx >= 0) {
+    schedDraft.splice(idx, 1); // 取消
+  } else {
+    // 检查冲突：如果被其他课占用，先提示
+    const conflict = config.courses.some((c, ci) =>
+      ci !== schedCourseIdx && c.slots.some(s => s.day === day && s.period === period));
+    if (conflict && !confirm('该时段已有其他课程，确定要覆盖吗？')) return;
+    // 移除冲突课的该时段
+    config.courses.forEach((c, ci) => {
+      if (ci !== schedCourseIdx) {
+        c.slots = c.slots.filter(s => !(s.day === day && s.period === period));
+      }
+    });
+    schedDraft.push({day, period});
+  }
+  renderSchedGrid();
+}
 
 function renderTeachers() {
   const el = document.getElementById('teacher-list');
