@@ -107,7 +107,7 @@ body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
   </div>
   <button class="btn btn-primary" onclick="saveAll()" style="margin-top:16px;">💾 保存全部配置</button>
 </div>
-<div class="footer">ClassWhiz · 配置保存后设备自动重启生效</div>
+<div class="footer">ClassWhiz · 保存后自动热更新，无需重启</div>
 <div class="toast" id="toast"></div>
 <script>
 let config = {courses:[], teachers:[], tasks:[], student:{}, weather:{cities:[]}};
@@ -240,7 +240,7 @@ async function saveAll() {
       body: JSON.stringify(config)
     });
     const res = await r.json();
-    if (res.ok) toast('✅ 保存成功，设备即将重启');
+    if (res.ok) toast('✅ 保存成功，已热更新');
     else toast('保存失败');
   } catch(e) { toast('网络错误'); }
 }

@@ -194,7 +194,8 @@ bool cw_config_init(void) {
 }
 
 bool cw_config_save(void) {
-    char buf[8192];
+    // 注意:不能用栈上大数组,HTTP handler 任务栈小,会溢出重启
+    static char buf[8192];
     if (!cw_config_to_json(buf, sizeof(buf))) {
         ESP_LOGE(TAG, "JSON serialize failed");
         return false;
