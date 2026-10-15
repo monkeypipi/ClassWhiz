@@ -50,6 +50,7 @@ uint64_t cw_app_mono_ms(void);
 
 // 全局状态(供各屏幕读写)
 cw_settings_t *cw_app_settings(void);
+void cw_app_mark_dirty(void);
 bool *cw_app_task_done(void); // [CW_STORE_MAX_TASKS]
 cw_pomo_t *cw_app_pomo(void);
 void cw_app_mark_dirty(void); // 标记需持久化(tick 中落盘)

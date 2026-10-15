@@ -14,6 +14,8 @@
 #include "lwip/dns.h"
 #include "cw_portal_page.h"
 #include "cw_photo.h"
+#include "cw_app.h"
+#include "cw_store.h"
 
 static const char *TAG = "cw_portal";
 static bool s_running = false;
@@ -110,6 +112,24 @@ static esp_err_t api_config_get_handler(httpd_req_t *req) {
         httpd_resp_send(req, "{\"ok\":false}", HTTPD_RESP_USE_STRLEN);
         return ESP_OK;
     }
+    // 注入 settings
+    cJSON *root = cJSON_Parse(json_buf);
+    if (root) {
+        cw_settings_t *s = cw_app_settings();
+        cJSON *st = cJSON_CreateObject();
+        cJSON_AddNumberToObject(st, "lang", s->lang);
+        cJSON_AddNumberToObject(st, "time24", s->time_24h ? 1 : 0);
+        cJSON_AddNumberToObject(st, "tempC", s->temp_celsius ? 1 : 0);
+        cJSON_AddItemToObject(root, "settings", st);
+        char *out = cJSON_PrintUnformatted(root);
+        cJSON_Delete(root);
+        if (out) {
+            httpd_resp_set_type(req, "application/json; charset=utf-8");
+            httpd_resp_send(req, out, HTTPD_RESP_USE_STRLEN);
+            cJSON_free(out);
+            return ESP_OK;
+        }
+    }
     httpd_resp_set_type(req, "application/json; charset=utf-8");
     httpd_resp_send(req, json_buf, HTTPD_RESP_USE_STRLEN);
     return ESP_OK;
@@ -132,6 +152,26 @@ static esp_err_t api_config_post_handler(httpd_req_t *req) {
     buf[ret] = '\0';
 
     bool ok = cw_config_from_json(buf);
+
+    // 解析 settings 并应用
+    if (ok) {
+        cJSON *root = cJSON_Parse(buf);
+        if (root) {
+            cJSON *st = cJSON_GetObjectItem(root, "settings");
+            if (cJSON_IsObject(st)) {
+                cw_settings_t *s = cw_app_settings();
+                cJSON *lang = cJSON_GetObjectItem(st, "lang");
+                cJSON *time24 = cJSON_GetObjectItem(st, "time24");
+                cJSON *tempC = cJSON_GetObjectItem(st, "tempC");
+                if (cJSON_IsNumber(lang)) s->lang = (cw_lang_t)lang->valueint;
+                if (cJSON_IsNumber(time24)) s->time_24h = time24->valueint ? true : false;
+                if (cJSON_IsNumber(tempC)) s->temp_celsius = tempC->valueint ? true : false;
+                cw_set_lang(s->lang);
+                cw_app_mark_dirty();
+            }
+            cJSON_Delete(root);
+        }
+    }
     free(buf);
 
     if (ok) {
@@ -142,6 +182,17 @@ static esp_err_t api_config_post_handler(httpd_req_t *req) {
 
     httpd_resp_set_type(req, "application/json");
     httpd_resp_send(req, ok ? "{\"ok\":true}" : "{\"ok\":false}", HTTPD_RESP_USE_STRLEN);
+    return ESP_OK;
+}
+
+// 恢复出厂:POST /api/reset
+static esp_err_t api_reset_handler(httpd_req_t *req) {
+    (void)req;
+    cw_config_reset_defaults();
+    cw_data_sync_views();
+    ESP_LOGI(TAG, "Config reset to defaults via web");
+    httpd_resp_set_type(req, "application/json");
+    httpd_resp_send(req, "{\"ok\":true}", HTTPD_RESP_USE_STRLEN);
     return ESP_OK;
 }
 
@@ -214,6 +265,9 @@ static void start_httpd(void) {
 
     httpd_uri_t api_photo = {.uri = "/api/photo", .method = HTTP_POST, .handler = api_photo_post_handler};
     httpd_register_uri_handler(s_httpd, &api_photo);
+
+    httpd_uri_t api_reset = {.uri = "/api/reset", .method = HTTP_POST, .handler = api_reset_handler};
+    httpd_register_uri_handler(s_httpd, &api_reset);
 
     // 常见 Captive Portal 检测 URL
     const char *captive_urls[] = {

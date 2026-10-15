@@ -58,6 +58,10 @@ cw_settings_t *cw_app_settings(void) {
     return &s_settings;
 }
 
+void cw_app_mark_dirty(void) {
+    s_dirty = true;
+}
+
 bool *cw_app_task_done(void) {
     return s_task_done;
 }
