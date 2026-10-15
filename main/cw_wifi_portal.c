@@ -18,6 +18,7 @@
 static const char *TAG = "cw_portal";
 static bool s_running = false;
 static httpd_handle_t s_httpd = NULL;
+static esp_netif_t *s_ap_netif = NULL;
 static int s_dns_sock = -1;
 static char s_ssid[32] = {0};
 
@@ -243,15 +244,40 @@ static void stop_httpd(void) {
 bool cw_portal_start(void) {
     if (s_running) return true;
 
-    // 生成 SSID: ClassWhiz-XXXX (后4位用 MAC)
-    uint8_t mac[6];
+    // esp_wifi_init 依赖 netif 与默认事件循环;main.c 没有建过,这里补上。
+    // 若其它模块已建过则返回 ESP_ERR_INVALID_STATE,属正常,忽略即可。
+    // 绝不能用 ESP_ERROR_CHECK 包 Wi-Fi 调用:一次失败就 abort 重启,
+    // 表现为“按 OK 回到主页”。所有失败都要记日志并优雅返回 false。
+    esp_err_t err = esp_netif_init();
+    if (err != ESP_OK && err != ESP_ERR_INVALID_STATE) {
+        ESP_LOGE(TAG, "esp_netif_init failed: %s", esp_err_to_name(err));
+        return false;
+    }
+    err = esp_event_loop_create_default();
+    if (err != ESP_OK && err != ESP_ERR_INVALID_STATE) {
+        ESP_LOGE(TAG, "event loop create failed: %s", esp_err_to_name(err));
+        return false;
+    }
+
+    // Wi-Fi AP(netif 只建一次,stop 时销毁,避免反复开关泄漏)
+    if (!s_ap_netif) {
+        s_ap_netif = esp_netif_create_default_wifi_ap();
+    }
+    wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
+    err = esp_wifi_init(&cfg);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "esp_wifi_init failed: %s", esp_err_to_name(err));
+        if (s_ap_netif) {
+            esp_netif_destroy(s_ap_netif);
+            s_ap_netif = NULL;
+        }
+        return false;
+    }
+
+    // 生成 SSID: ClassWhiz-XXXX (后4位用 MAC),须在 esp_wifi_init 之后取 MAC
+    uint8_t mac[6] = {0};
     esp_wifi_get_mac(WIFI_IF_AP, mac);
     snprintf(s_ssid, sizeof(s_ssid), "ClassWhiz-%02X%02X", mac[4], mac[5]);
-
-    // Wi-Fi AP
-    esp_netif_create_default_wifi_ap();
-    wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
-    ESP_ERROR_CHECK(esp_wifi_init(&cfg));
 
     wifi_config_t wifi_config = {0};
     strncpy((char *)wifi_config.ap.ssid, s_ssid, sizeof(wifi_config.ap.ssid));
@@ -260,16 +286,45 @@ bool cw_portal_start(void) {
     wifi_config.ap.max_connection = 4;
     wifi_config.ap.authmode = WIFI_AUTH_OPEN;
 
-    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_AP));
-    ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_AP, &wifi_config));
-    ESP_ERROR_CHECK(esp_wifi_start());
+    err = esp_wifi_set_mode(WIFI_MODE_AP);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "esp_wifi_set_mode failed: %s", esp_err_to_name(err));
+        esp_wifi_deinit();
+        if (s_ap_netif) {
+            esp_netif_destroy(s_ap_netif);
+            s_ap_netif = NULL;
+        }
+        return false;
+    }
+    err = esp_wifi_set_config(WIFI_IF_AP, &wifi_config);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "esp_wifi_set_config failed: %s", esp_err_to_name(err));
+        esp_wifi_deinit();
+        if (s_ap_netif) {
+            esp_netif_destroy(s_ap_netif);
+            s_ap_netif = NULL;
+        }
+        return false;
+    }
+    err = esp_wifi_start();
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "esp_wifi_start failed: %s", esp_err_to_name(err));
+        esp_wifi_deinit();
+        if (s_ap_netif) {
+            esp_netif_destroy(s_ap_netif);
+            s_ap_netif = NULL;
+        }
+        return false;
+    }
 
     ESP_LOGI(TAG, "AP started: SSID=%s", s_ssid);
 
     s_running = true;
 
     // DNS 劫持
-    xTaskCreate(dns_server_task, "dns_hijack", 2048, NULL, 5, NULL);
+    // dns_server_task 在栈上放了 rx_buf[512]+tx_buf[512]=1KB,再加 esp_log 的
+    // vfprintf 开销,2KB 会触发栈保护中断(实测 Guru Meditation),给 4KB。
+    xTaskCreate(dns_server_task, "dns_hijack", 4096, NULL, 5, NULL);
 
     // HTTP 服务器
     start_httpd();
@@ -289,6 +344,11 @@ void cw_portal_stop(void) {
 
     esp_wifi_stop();
     esp_wifi_deinit();
+
+    if (s_ap_netif) {
+        esp_netif_destroy(s_ap_netif);
+        s_ap_netif = NULL;
+    }
 
     ESP_LOGI(TAG, "Portal stopped");
 }

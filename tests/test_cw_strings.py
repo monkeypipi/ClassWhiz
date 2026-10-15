@@ -51,6 +51,9 @@ def main() -> int:
     symbols = set((ROOT / "assets" / "fonts" / "symbols.txt").read_text(encoding="utf-8"))
     used: set[str] = set()
     for path in sorted((ROOT / "main").glob("*.c")) + sorted((ROOT / "main").glob("*.h")):
+        # 门户 HTML 在手机浏览器里渲染,不经过 LVGL,不参与设备字形覆盖检查
+        if path.name == "cw_portal_page.h":
+            continue
         for m in STR_RE.finditer(path.read_text(encoding="utf-8")):
             for ch in m.group(0):
                 if ord(ch) > 0x7E and not ch.isspace():

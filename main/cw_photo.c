@@ -2,6 +2,7 @@
 #include "cw_photo.h"
 
 #include <string.h>
+#include <unistd.h>
 
 #include "esp_log.h"
 #include "esp_spiffs.h"

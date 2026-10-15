@@ -24,5 +24,5 @@ idf_component_register(
          "fonts/cw_font_14.c"
          "fonts/cw_font_16.c"
     INCLUDE_DIRS "."
-    REQUIRES bsp bt esp_event esp_hw_support esp_netif esp_timer esp_wifi nvs_flash json spiffs
+    REQUIRES bsp bt esp_event esp_hw_support esp_netif esp_timer esp_wifi nvs_flash json spiffs esp_http_client esp_http_server
 )

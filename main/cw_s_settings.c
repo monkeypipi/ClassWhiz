@@ -1,14 +1,21 @@
-// cw_s_settings.c — 设置:语言 / 时间格式 / 温度单位 / Wi-Fi(v2) / 重置 / 关于。
+// cw_s_settings.c — 设置:语言 / 时间格式 / 温度单位 / Wi-Fi 配置门户 / 重置 / 关于。
 #include "cw_app.h"
 #include "cw_store.h"
 #include "cw_ui.h"
+#include "cw_wifi_portal.h"
 
 #include <stdio.h>
 #include <string.h>
 
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+
 static lv_obj_t *s_scr;
 static int s_sel;
 static bool s_confirm_reset;
+static bool s_portal_busy;
+static bool s_portal_target;
+static bool s_last_running;
 
 typedef enum {
     ROW_LANG = 0,
@@ -27,6 +34,8 @@ static void settings_enter(void *ctx) {
     s_scr = cw_screen_create(cw_str(CW_S_SETTINGS));
     s_sel = 0;
     s_confirm_reset = false;
+    s_portal_busy = false;
+    s_last_running = cw_portal_is_running();
     build();
     cw_hint_bar(s_scr, "UP/DN: Move", "OK: Change");
 }
@@ -58,7 +67,15 @@ static void build(void) {
     lv_obj_set_style_bg_opa(wifi, s_sel == ROW_WIFI ? LV_OPA_COVER : LV_OPA_TRANSP, 0);
     lv_obj_set_style_bg_color(wifi, lv_color_hex(0x1B2A52), 0);
     lv_obj_set_style_radius(wifi, 8, 0);
-    cw_tag(wifi, "v2", CW_C_AMBER);
+    // 配置门户开关:启动/停止在 worker 任务里做,按键回调不能阻塞 LVGL 任务
+    if (s_portal_busy) {
+        cw_tag(wifi, "...", CW_C_AMBER);
+    } else if (cw_portal_is_running()) {
+        cw_tag(wifi, "ON", CW_C_TEAL);
+        cw_label_small(wifi, cw_portal_ssid());
+    } else {
+        cw_tag(wifi, "OFF", 0x8A93A6);
+    }
 
     lv_obj_t *reset = cw_set_row(
         body, s_confirm_reset ? cw_str(CW_S_CONFIRM_RESET) : cw_str(CW_S_RESET_DATA));
@@ -85,6 +102,35 @@ static void do_reset(void) {
     memset(cw_app_task_done(), 0, CW_STORE_MAX_TASKS);
     cw_pomo_init(cw_app_pomo());
     s_confirm_reset = false;
+}
+
+static void portal_worker(void *arg) {
+    (void)arg;
+    // s_portal_target 由按键侧在 spawn 前写好,且 busy 期间不会再 spawn
+    if (s_portal_target) {
+        cw_portal_start();
+    } else {
+        cw_portal_stop();
+    }
+    vTaskDelete(NULL);
+}
+
+static void toggle_portal(void) {
+    if (s_portal_busy) return;
+    s_portal_target = !cw_portal_is_running();
+    s_portal_busy = true;
+    build();
+    xTaskCreate(portal_worker, "portal", 4096, NULL, 5, NULL);
+}
+
+static void settings_tick(uint64_t now_ms) {
+    (void)now_ms;
+    bool running = cw_portal_is_running();
+    if (running != s_last_running) {
+        s_last_running = running;
+        if (running == s_portal_target) s_portal_busy = false;
+        build();
+    }
 }
 
 static void settings_key(bsp_btn_t btn, bsp_btn_ev_t ev) {
@@ -118,7 +164,8 @@ static void settings_key(bsp_btn_t btn, bsp_btn_ev_t ev) {
                 build();
                 break;
             case ROW_WIFI:
-                break; // v2
+                toggle_portal();
+                break;
             case ROW_RESET:
                 if (s_confirm_reset) {
                     do_reset();
@@ -139,6 +186,6 @@ const cw_screen_def_t cw_scr_settings_def = {
     .enter = settings_enter,
     .exit = NULL,
     .key = settings_key,
-    .tick = NULL,
+    .tick = settings_tick,
     .name = "settings",
 };

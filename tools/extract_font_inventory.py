@@ -41,6 +41,9 @@ def main() -> int:
     str_re = re.compile(r'"(?:[^"\\]|\\.)*"')
     # ASCII printable is always included by lv_font_conv --symbols ranges below
     for path in sorted(MAIN.glob("*.c")) + sorted(MAIN.glob("*.h")):
+        # 门户 HTML 在手机浏览器里渲染,不经过 LVGL,它的字符不进设备字体清单
+        if path.name == "cw_portal_page.h":
+            continue
         text = path.read_text(encoding="utf-8")
         # 只扫描字符串字面量,排除注释
         for m in str_re.finditer(text):

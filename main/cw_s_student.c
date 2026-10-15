@@ -36,10 +36,11 @@ static bool load_student_photo(void) {
         return false;
     }
 
-    s_photo_dsc.header.always_zero = 0;
+    // LVGL 9 的 image header 没有 always_zero,cf 用 color format 枚举,且必须填 stride
+    s_photo_dsc.header.cf = LV_COLOR_FORMAT_RGB565;
     s_photo_dsc.header.w = CW_PHOTO_W;
     s_photo_dsc.header.h = CW_PHOTO_H;
-    s_photo_dsc.header.cf = LV_IMG_CF_TRUE_COLOR;
+    s_photo_dsc.header.stride = CW_PHOTO_W * 2;
     s_photo_dsc.data_size = CW_PHOTO_SIZE;
     s_photo_dsc.data = s_photo_buf;
 
