@@ -10,6 +10,7 @@
 #include "esp_netif.h"
 #include "esp_event.h"
 #include "esp_http_server.h"
+#include "cJSON.h"
 #include "lwip/sockets.h"
 #include "lwip/dns.h"
 #include "cw_portal_page.h"

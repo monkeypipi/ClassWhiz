@@ -70,10 +70,6 @@ cw_pomo_t *cw_app_pomo(void) {
     return &s_pomo;
 }
 
-void cw_app_mark_dirty(void) {
-    s_dirty = true;
-}
-
 static void teardown_top(void) {
     if (s_depth <= 0) return;
     nav_entry_t *e = &s_stack[s_depth - 1];
