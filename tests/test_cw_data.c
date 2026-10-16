@@ -13,14 +13,6 @@
     } \
 } while (0)
 
-static int test_periods(void) {
-    CHECK(cw_period_start_min(1) == 540);
-    CHECK(cw_period_end_min(3) == 740);
-    CHECK(cw_period_start_min(0) == -1);
-    CHECK(cw_period_start_min(8) == -1);
-    return 0;
-}
-
 static int test_schedule(void) {
     cw_class_t classes[CW_MAX_SLOTS_PER_DAY];
     int n = cw_classes_for_day(CW_DAY_TUE, classes, CW_MAX_SLOTS_PER_DAY);
@@ -138,7 +130,6 @@ int main(void) {
     cw_config_init();
     cw_data_sync_views();
     int fails = 0;
-    fails += test_periods();
     fails += test_schedule();
     fails += test_next_class();
     fails += test_class_state();

@@ -100,7 +100,6 @@ const char *cw_str(cw_str_id_t id);
 
 // 节次时间表(分钟,自 00:00)
 int cw_period_start_min(int period); // period: 1..7
-int cw_period_end_min(int period);
 
 // 课程时间槽:星期 + 开始/结束分钟数(0..1439)
 typedef struct {

@@ -214,24 +214,6 @@ const char *cw_str(cw_str_id_t id) {
 
 // 节次:1:09:00-09:50 2:10:00-10:50 3:11:00-12:20 4:13:00-13:50
 //      5:14:00-14:50 6:15:30-16:50 7:17:00-17:50
-static const int PERIOD_START[CW_PERIOD_COUNT] = {
-    9 * 60, 10 * 60, 11 * 60, 13 * 60, 14 * 60, 15 * 60 + 30, 17 * 60,
-};
-static const int PERIOD_END[CW_PERIOD_COUNT] = {
-    9 * 60 + 50, 10 * 60 + 50, 12 * 60 + 20, 13 * 60 + 50,
-    14 * 60 + 50, 16 * 60 + 50, 17 * 60 + 50,
-};
-
-int cw_period_start_min(int period) {
-    if (period < 1 || period > CW_PERIOD_COUNT) return -1;
-    return PERIOD_START[period - 1];
-}
-
-int cw_period_end_min(int period) {
-    if (period < 1 || period > CW_PERIOD_COUNT) return -1;
-    return PERIOD_END[period - 1];
-}
-
 // 课程数据
 
 

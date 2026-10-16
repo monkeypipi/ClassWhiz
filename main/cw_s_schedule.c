@@ -199,14 +199,16 @@ static void build_grid(void) {
     lv_obj_set_style_bg_opa(gut, LV_OPA_TRANSP, 0);
     lv_obj_set_style_border_width(gut, 0, 0);
     lv_obj_set_style_pad_all(gut, 0, 0);
-    for (int p = 1; p <= 7; p++) {
+    // 时间轴:186px 对应 8:00-20:00,每 2 小时标一个
+    for (int h = 8; h <= 20; h += 2) {
         lv_obj_t *l = lv_label_create(gut);
         char b[8];
-        snprintf(b, sizeof(b), "%d", p);
+        snprintf(b, sizeof(b), "%d", h);
         lv_label_set_text(l, b);
         lv_obj_set_style_text_font(l, &lv_font_montserrat_8, 0);
         lv_obj_set_style_text_color(l, lv_color_hex(CW_C_MUTED), 0);
-        lv_obj_set_pos(l, 2, (p - 1) * 26 + 8);
+        int y = (h * 60 - 480) * 186 / 720;
+        lv_obj_set_pos(l, 1, y - 4);
     }
     for (int d = 0; d < 7; d++) {
         lv_obj_t *col = lv_obj_create(grid);
@@ -218,11 +220,12 @@ static void build_grid(void) {
         lv_obj_set_style_border_width(col, 0, 0);
         lv_obj_set_style_pad_all(col, 0, 0);
         lv_obj_set_scrollbar_mode(col, LV_SCROLLBAR_MODE_OFF);
-        // 行线
-        for (int p = 1; p < 7; p++) {
+        // 整点行线
+        for (int h = 9; h < 20; h++) {
             lv_obj_t *ln = lv_obj_create(col);
             lv_obj_set_size(ln, LV_PCT(100), 1);
-            lv_obj_set_pos(ln, 0, p * 26);
+            int y = (h * 60 - 480) * 186 / 720;
+            lv_obj_set_pos(ln, 0, y);
             lv_obj_set_style_bg_color(ln, lv_color_hex(0x131C31), 0);
             lv_obj_set_style_border_width(ln, 0, 0);
             lv_obj_set_style_pad_all(ln, 0, 0);
@@ -231,11 +234,13 @@ static void build_grid(void) {
         int n = cw_classes_for_day(d, classes, CW_MAX_SLOTS_PER_DAY);
         for (int i = 0; i < n; i++) {
             lv_obj_t *blk = lv_obj_create(col);
-            { int y = (classes[i].start_min - 480) * 26 / 60;
-              int h = (classes[i].end_min - classes[i].start_min) * 26 / 60;
-              if (h < 20) h = 20;
+            { int y = (classes[i].start_min - 480) * 186 / 720;
+              int h = (classes[i].end_min - classes[i].start_min) * 186 / 720;
+              if (y < 0) { h += y; y = 0; }
+              if (y + h > 186) h = 186 - y;
+              if (h < 14) h = 14;
               lv_obj_set_size(blk, LV_PCT(100), h);
-              lv_obj_set_pos(blk, 0, y + 1); }
+              lv_obj_set_pos(blk, 0, y); }
             lv_obj_set_style_bg_color(blk, lv_color_hex(classes[i].course->color), 0);
             lv_obj_set_style_radius(blk, 4, 0);
             lv_obj_set_style_border_width(blk, 0, 0);
@@ -262,22 +267,9 @@ static void build_grid(void) {
             lv_obj_set_style_text_font(bn, &lv_font_montserrat_8, 0);
             lv_obj_set_style_text_color(bn, lv_color_hex(0xE6EDFF), 0);
         }
-        // 现在时间线
-        if (d == today && now_min >= cw_period_start_min(1) &&
-            now_min <= cw_period_end_min(7)) {
-            int y = 0;
-            for (int p = 1; p <= 7; p++) {
-                if (now_min >= cw_period_start_min(p) && now_min <= cw_period_end_min(p)) {
-                    int s = cw_period_start_min(p), e = cw_period_end_min(p);
-                    y = (p - 1) * 26 + (now_min - s) * 26 / (e - s);
-                    break;
-                }
-                if (p < 7 && now_min > cw_period_end_min(p) &&
-                    now_min < cw_period_start_min(p + 1)) {
-                    y = p * 26 - 13;
-                    break;
-                }
-            }
+        // 现在时间线:线性映射 8:00-20:00 -> 0-186px
+        if (d == today && now_min >= 480 && now_min <= 1200) {
+            int y = (now_min - 480) * 186 / 720;
             lv_obj_t *nl = lv_obj_create(col);
             lv_obj_set_size(nl, LV_PCT(100), 2);
             lv_obj_set_pos(nl, 0, y);
